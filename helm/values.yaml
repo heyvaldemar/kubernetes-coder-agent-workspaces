@@ -1,0 +1,82 @@
+# Values for Coder's Helm chart (charts.lock pins version 2.38.6 and its
+# archive's sha256). Every setting below differs from the chart's default for
+# a reason written next to it. Flag names are from codersdk/deployment.go in
+# coder/coder at v2.38.6, not from memory.
+coder:
+  image:
+    repo: ghcr.io/coder/coder
+    # The chart writes repo:tag, so the digest rides on the tag.
+    tag: "v2.38.6@sha256:c9245405c482ede17699d65deb8c21488a17feff5497fc84d6a350c395da2bdd"
+    pullPolicy: IfNotPresent
+
+  env:
+    # Workspaces reach the server at its Service. People reach it through
+    # whatever the cluster gives them (an Ingress, a port-forward); the CLI
+    # and the dashboard work from either.
+    - name: CODER_ACCESS_URL
+      value: http://coder.coder.svc.cluster.local
+    - name: CODER_PG_CONNECTION_URL
+      valueFrom:
+        secretKeyRef: {name: coder-db, key: url}
+
+    # What the server dials on its own, turned off where a flag turns it off.
+    # The README's table "What the control plane dials" is the measured list,
+    # with these on (the defaults) and off (this file).
+    #
+    # Anonymized usage data to https://telemetry.coder.com. Default: on.
+    - {name: CODER_TELEMETRY_ENABLE, value: "false"}
+    # A daily look at https://api.github.com/repos/coder/coder/releases/latest.
+    # Default: on in release builds.
+    - {name: CODER_UPDATE_CHECK, value: "false"}
+    # Five Google STUN servers, so clients can find a direct path to a
+    # workspace. Default: stun.l.google.com:19302 and four more.
+    - {name: CODER_DERP_SERVER_STUN_ADDRESSES, value: disable}
+    # No peer-to-peer connections: every connection to a workspace is relayed
+    # by the server's own relay (DERP over its HTTP port), so a workspace
+    # never takes a connection in and its egress can stay one rule wide.
+    - {name: CODER_BLOCK_DIRECT, value: "true"}
+    # Terraform's own version check to checkpoint-api.hashicorp.com, made on
+    # every init. Coder passes the server's environment to Terraform.
+    - {name: CHECKPOINT_DISABLE, value: "1"}
+    # The provisioner's working files, on the emptyDir below: the root is
+    # read-only.
+    - {name: CODER_CACHE_DIRECTORY, value: /tmp/coder-cache}
+
+  # Community edition: the server is its own provisioner (external
+  # provisioner daemons are a Premium feature), so its ServiceAccount is the
+  # identity every template's Terraform runs as. It gets pods and claims in
+  # coder-workspaces and nothing anywhere else: not in its own namespace, not
+  # Deployments, not Services, NetworkPolicies, Namespaces or RBAC. The e2e
+  # asks the API server about each with `kubectl auth can-i`.
+  serviceAccount:
+    workspacePerms: false
+    enableDeployments: false
+    workspaceNamespaces:
+      - name: coder-workspaces
+        workspacePerms: true
+        enableDeployments: false
+
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
+
+  volumes:
+    - {name: tmp, emptyDir: {}}
+    - {name: home, emptyDir: {}}
+  volumeMounts:
+    - {name: tmp, mountPath: /tmp}
+    - {name: home, mountPath: /home/coder}
+
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {cpu: "2", memory: 2Gi}
+
+  service:
+    type: ClusterIP

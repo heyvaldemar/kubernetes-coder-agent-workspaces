@@ -1,0 +1,11 @@
+# The container images CI runs to check this repository, pinned by digest:
+# the same binaries check it here and on a contributor's machine.
+#
+# They live here rather than in the workflows so fleet triage can move them
+# when a tag is rebuilt or a line is superseded, with a token that cannot
+# rewrite workflows. Only KEY=VALUE lines are read.
+ACTIONLINT_IMAGE=rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+SHELLCHECK_IMAGE=koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
+# The Terraform the Coder image bundles (1.17.1, scripts/Dockerfile.base in
+# coder/coder at v2.38.6), for `terraform fmt -check` on the templates.
+TERRAFORM_IMAGE=hashicorp/terraform:1.17.1@sha256:a5d5a5a892c98f60fcbfa81eac2a40fc19e7b3fa7719bccae10ff6111d22524a

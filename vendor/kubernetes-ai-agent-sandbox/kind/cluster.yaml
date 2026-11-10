@@ -1,0 +1,18 @@
+# One node is enough to prove isolation; the node image is pinned by digest.
+# The containerd patch registers gVisor's runsc as a runtime handler and
+# points it at /etc/containerd/runsc.toml. The binaries and that file are
+# installed by scripts/install-gvisor.sh after the cluster starts, from the
+# release pinned in gvisor.lock.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: agent-sandbox
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
+      runtime_type = "io.containerd.runsc.v1"
+    [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc.options]
+      TypeUrl = "io.containerd.runsc.v1.options"
+      ConfigPath = "/etc/containerd/runsc.toml"

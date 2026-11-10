@@ -1,0 +1,89 @@
+name: Coder workspaces e2e
+
+# A fresh kind cluster with the sandbox's gVisor, Coder Community from its
+# pinned chart, and tests/e2e/run.sh against it: a template pushed and a
+# workspace started through Coder, the workspace on gVisor reaching the Coder
+# server and nothing else, its one credential measured, the provisioner's
+# rights asked of the API server, twenty edited templates refused, the same
+# targets answering from outside, and what the server looked up while it ran.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "41 4 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A pull request's newer push replaces its older run. Nothing else is
+# cancelled: a push to main must not cancel the weekly scheduled run, which
+# is the one that shows the pins still work when nothing here changed.
+concurrency:
+  group: e2e-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  e2e:
+    name: Fresh cluster, every check
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned tools
+        run: ./scripts/install-tools.sh >> "$GITHUB_PATH"
+
+      # Under gVisor, on a node with swap, a pod's memory limit is its RAM
+      # plus unlimited swap (the sandbox's threat model). Production nodes run
+      # without it, and so does this one. The log shows what the runner had.
+      - name: No swap, as on a production node
+        run: |
+          echo "before:"; cat /proc/swaps
+          sudo swapoff -a
+          echo "after:"; cat /proc/swaps
+
+      - name: Create the kind cluster (the sandbox's kind/cluster.yaml)
+        run: kind create cluster --name coder-workspaces --config vendor/kubernetes-ai-agent-sandbox/kind/cluster.yaml --wait 120s
+
+      - name: Install gVisor (the sandbox's install-gvisor.sh)
+        run: ./vendor/kubernetes-ai-agent-sandbox/scripts/install-gvisor.sh coder-workspaces
+
+      # A measurement fixture: the cluster resolver logs every query from
+      # here on, so step 9 can read what the Coder server looked up from its
+      # first second.
+      - name: Log the cluster's DNS queries
+        run: ./scripts/dns-log.sh on
+
+      - name: Install the boundary and Coder
+        env:
+          CODER_GITHUB: placeholder
+        run: ./scripts/install-coder.sh
+
+      - name: Run the checks
+        env:
+          E2E_RESULTS: ${{ runner.temp }}/e2e-results.json
+          CODER_CONFIG_DIR: ${{ runner.temp }}/coder-cli
+        run: ./tests/e2e/run.sh
+
+      - name: Keep the results for the status workflow
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-results
+          path: ${{ runner.temp }}/e2e-results.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: What the cluster looked like
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide
+          kubectl get events -A --sort-by=.lastTimestamp | tail -40
+          kubectl -n coder logs deployment/coder --tail=80 || true
+          kubectl -n coder-workspaces get pods -o wide || true

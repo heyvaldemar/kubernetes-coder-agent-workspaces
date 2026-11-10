@@ -1,0 +1,87 @@
+name: Verify
+
+# The checks that need no cluster: workflows and shell scripts linted, the
+# templates formatted, every manifest and the rendered chart valid for
+# Kubernetes 1.37, every image by digest, the sandbox's files byte for byte
+# the release they came from, the chart values and the templates keeping
+# what the README claims, and each of those checks shown the violation it
+# exists for.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "37 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: Static checks, and that each can fail
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the pinned CI images
+        run: grep -E '^[A-Z_]+=' ci-images.pins >> "$GITHUB_ENV"
+
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/mnt" -w /mnt "$ACTIONLINT_IMAGE" -color
+
+      - name: shellcheck
+        run: docker run --rm -v "$PWD:/mnt" -w /mnt "$SHELLCHECK_IMAGE" -x scripts/*.sh tests/e2e/*.sh tests/egress/*.sh
+
+      # The Terraform the Coder image bundles, so the format is the one a
+      # template build reads.
+      - name: terraform fmt
+        run: |
+          for d in templates/agent-workspace tests/e2e/tampered; do
+            docker run --rm -v "$PWD/$d:/t" -w /t "$TERRAFORM_IMAGE" fmt -check -diff
+          done
+
+      - name: Install the pinned tools
+        run: ./scripts/install-tools.sh >> "$GITHUB_PATH"
+
+      - name: Static checks
+        run: ./scripts/validate.sh
+
+      - name: Each check, shown its planted violation
+        run: python3 tests/static/plant_violations.py
+
+  freshness:
+    name: Pins that fell behind upstream
+    # Scheduled and manual only: a new upstream release is not actionable in
+    # an unrelated pull request. A failure lands as a workflow-failure
+    # notification, which fleet triage reads. Dependabot here watches the
+    # workflows' actions and the templates' providers; this watches the
+    # chart, the images, the tools and the sandbox the boundary comes from.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compare every pin with what upstream has released
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-freshness.py
+
+      - name: The sandbox's files against the sandbox, at the pinned commit
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-vendor.py --upstream

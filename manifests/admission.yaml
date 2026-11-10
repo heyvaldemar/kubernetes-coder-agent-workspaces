@@ -1,0 +1,67 @@
+# What a Coder workspace must be, on top of the sandbox's own policy.
+#
+# The sandbox's ValidatingAdmissionPolicy (vendor/kubernetes-ai-agent-sandbox/
+# manifests/admission.yaml, verbatim at v1.4.0) binds to every namespace
+# labelled sandbox.heyvaldemar.com/agents, coder-workspaces included: gVisor,
+# no Kubernetes API token, every image by digest, CPU and memory limits, a
+# read-only root, no Secret in a volume or the environment, and no projected
+# token but the MCP server's. Pod Security "restricted" holds privilege,
+# capabilities, host namespaces, hostPath and root underneath it.
+#
+# A Coder template is Terraform, and whoever can edit one chooses the image a
+# workspace runs. This policy takes that choice back to the cluster: a
+# workspace runs the workspace image this repository pins, and its gate runs
+# the sandbox's busybox. Both by digest, which the sandbox's policy already
+# requires; here, also from where.
+#
+# Like the sandbox's, it is evaluated by the API server itself: nothing to
+# install, nothing that can be scaled to zero.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: coder-workspace
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [deployments, statefulsets, replicasets, daemonsets]
+      - apiGroups: [batch]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [jobs, cronjobs]
+  variables:
+    - name: podSpec
+      expression: >-
+        object.kind == 'Pod' ? object.spec :
+        object.kind == 'CronJob' ? object.spec.jobTemplate.spec.template.spec :
+        object.spec.template.spec
+    - name: containers
+      expression: >-
+        variables.podSpec.containers +
+        (has(variables.podSpec.initContainers) ? variables.podSpec.initContainers : [])
+  validations:
+    - expression: >-
+        variables.containers.all(c, c.image.split('@')[0].split(':')[0] in
+        ['docker.io/codercom/example-minimal', 'docker.io/library/busybox'])
+      message: >-
+        a workspace runs the pinned workspace image (docker.io/codercom/example-minimal)
+        and its gate the sandbox's busybox (docker.io/library/busybox), written out in full
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: coder-workspace
+spec:
+  policyName: coder-workspace
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        coder.heyvaldemar.com/workspaces: "true"

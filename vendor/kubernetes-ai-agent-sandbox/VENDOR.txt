@@ -1,0 +1,21 @@
+# Files from heyvaldemar/kubernetes-ai-agent-sandbox, copied verbatim.
+#
+# Source:  https://github.com/heyvaldemar/kubernetes-ai-agent-sandbox
+# Release: v1.4.0
+# Commit:  6238e2c2a6fff18e5433c3c11df961976aac978d
+#
+# Nothing under this directory is edited here. scripts/check-vendor.py
+# compares every file with the sha256 below on every Verify run, and on its
+# schedule it also fetches each file from GitHub at the commit above and
+# compares the bytes, and reports a newer sandbox release. A change to the
+# boundary belongs in the sandbox repository and arrives here as a new copy
+# at a new commit (docs/decisions/0002-the-sandbox-consumed-at-a-pinned-commit.md).
+#
+# path                           sha256
+LICENSE                          9ca5518c1f32dde51e297e080a233d01439e23560632fd8634b0d64ffad99eb0
+gvisor.lock                      d263aa7df8671b4cee6ebb4367c995f535b67b698ea702aaa3dd76bb3561d9ea
+kind/cluster.yaml                cdbebdaa971daf302ba753f8ab1f6e0b0ac173b22a3d7d88e9ab266f8d963ec4
+scripts/install-gvisor.sh        36d6c0b85c0f38ef0bd853adb35cf1031d52e877aaacb2f4d3cf4649934cc8f9
+manifests/admission.yaml         380c8482b634c7ebf86d256b24867ea03f92fc7d7a85618191e7717798ec80e2
+manifests/agent-dns.yaml         835684fb5a2075a2ba086bc6bf001f1dd93d06d05b4d66441abb1634809cf457
+manifests/runtimeclass.yaml      d77ca3c93887ca0aa928d246806479821f26ce774dbd72f20bfd1fd682e1f0c2

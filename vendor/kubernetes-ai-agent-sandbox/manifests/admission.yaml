@@ -1,0 +1,154 @@
+# What a workload must be to run in a sandbox namespace, enforced by the API
+# server itself: a ValidatingAdmissionPolicy is evaluated in-process, so no
+# webhook, controller or add-on has to be running for it to refuse.
+#
+# Pod Security "restricted" (on the namespace) already refuses privileged
+# pods, host namespaces, hostPath, added capabilities and root. This adds what
+# an agent sandbox needs on top: gVisor, no API token, no write to its own
+# image, limits on what it may consume, images that cannot change under their
+# name, no Secret of any kind, and one token only: for the MCP server, short.
+#
+# A second policy holds tool servers (the MCP server) to the same runtime
+# rules, since they parse what a fooled agent sends.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: agent-sandbox
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [deployments, statefulsets, replicasets, daemonsets]
+      - apiGroups: [batch]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [jobs, cronjobs]
+  variables:
+    # One expression for a Pod and for everything that makes Pods.
+    - name: podSpec
+      expression: >-
+        object.kind == 'Pod' ? object.spec :
+        object.kind == 'CronJob' ? object.spec.jobTemplate.spec.template.spec :
+        object.spec.template.spec
+    - name: containers
+      expression: >-
+        variables.podSpec.containers +
+        (has(variables.podSpec.initContainers) ? variables.podSpec.initContainers : [])
+  validations:
+    - expression: >-
+        has(variables.podSpec.runtimeClassName) && variables.podSpec.runtimeClassName == 'gvisor'
+      message: an agent pod runs on gVisor; set spec.runtimeClassName to gvisor
+    - expression: >-
+        has(variables.podSpec.automountServiceAccountToken) &&
+        variables.podSpec.automountServiceAccountToken == false
+      message: an agent pod gets no Kubernetes API token; set automountServiceAccountToken to false
+    - expression: >-
+        variables.containers.all(c, c.image.contains('@sha256:'))
+      message: every image is referenced by digest; a tag can point at different bytes tomorrow
+    - expression: >-
+        variables.containers.all(c, has(c.resources) && has(c.resources.limits) &&
+        'cpu' in c.resources.limits && 'memory' in c.resources.limits)
+      message: every container declares CPU and memory limits
+    - expression: >-
+        variables.containers.all(c, has(c.securityContext) &&
+        has(c.securityContext.readOnlyRootFilesystem) && c.securityContext.readOnlyRootFilesystem)
+      message: every container runs with a read-only root filesystem
+    # A credential an agent can read is a credential a fooled agent can send.
+    # The MCP server holds what the tools need; the agent asks for the result.
+    - expression: >-
+        !has(variables.podSpec.volumes) || variables.podSpec.volumes.all(v,
+        !has(v.secret) && (!has(v.projected) || v.projected.sources.all(s, !has(s.secret))))
+      message: an agent pod mounts no Secret; the MCP server holds the credentials its tools need
+    - expression: >-
+        variables.containers.all(c,
+        (!has(c.env) || c.env.all(e, !has(e.valueFrom) || !has(e.valueFrom.secretKeyRef))) &&
+        (!has(c.envFrom) || c.envFrom.all(f, !has(f.secretRef))))
+      message: an agent pod takes no Secret into its environment; the MCP server holds the credentials its tools need
+    # A projected token with no audience is a Kubernetes API token by another
+    # name. The only one an agent may carry is for the MCP server, and short.
+    - expression: >-
+        !has(variables.podSpec.volumes) || variables.podSpec.volumes.all(v,
+        !has(v.projected) || v.projected.sources.all(s, !has(s.serviceAccountToken) ||
+        (has(s.serviceAccountToken.audience) && s.serviceAccountToken.audience == 'mcp.sandbox.heyvaldemar.com' &&
+        has(s.serviceAccountToken.expirationSeconds) && s.serviceAccountToken.expirationSeconds <= 3600)))
+      message: a token in an agent pod is for the MCP server only (audience mcp.sandbox.heyvaldemar.com) and expires within an hour
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: agent-sandbox
+spec:
+  policyName: agent-sandbox
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        sandbox.heyvaldemar.com/agents: "true"
+---
+# Tool servers: what an agent sends them is untrusted input, so they run on
+# gVisor too, read-only, by digest, with limits. Unlike an agent, a tool
+# server may hold a credential and a token: that is its job.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: tool-server-sandbox
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [deployments, statefulsets, replicasets, daemonsets]
+      - apiGroups: [batch]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [jobs, cronjobs]
+  variables:
+    - name: podSpec
+      expression: >-
+        object.kind == 'Pod' ? object.spec :
+        object.kind == 'CronJob' ? object.spec.jobTemplate.spec.template.spec :
+        object.spec.template.spec
+    - name: containers
+      expression: >-
+        variables.podSpec.containers +
+        (has(variables.podSpec.initContainers) ? variables.podSpec.initContainers : [])
+  validations:
+    - expression: >-
+        has(variables.podSpec.runtimeClassName) && variables.podSpec.runtimeClassName == 'gvisor'
+      message: a tool server runs on gVisor; it parses what agents send
+    - expression: >-
+        variables.containers.all(c, c.image.contains('@sha256:'))
+      message: every image is referenced by digest; a tag can point at different bytes tomorrow
+    - expression: >-
+        variables.containers.all(c, has(c.resources) && has(c.resources.limits) &&
+        'cpu' in c.resources.limits && 'memory' in c.resources.limits)
+      message: every container declares CPU and memory limits
+    - expression: >-
+        variables.containers.all(c, has(c.securityContext) &&
+        has(c.securityContext.readOnlyRootFilesystem) && c.securityContext.readOnlyRootFilesystem)
+      message: every container runs with a read-only root filesystem
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: tool-server-sandbox
+spec:
+  policyName: tool-server-sandbox
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        sandbox.heyvaldemar.com/tool-servers: "true"

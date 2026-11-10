@@ -1,0 +1,12 @@
+# The Helm chart scripts/install-coder.sh installs, pinned by version and the
+# sha256 of its archive. The hash is the one helm.coder.com/v2/index.yaml
+# publishes as the chart's digest, checked against the downloaded archive on
+# 2026-11-10. A chart installed by name from a repository is whatever the
+# index says that day; this one is the archive below or nothing.
+#
+# v2.38.6 is Coder's stable channel since 2026-11-03 (its release notes say
+# so); v2.39.0 is mainline. docs/decisions/0001-coder-community-on-kubernetes.md
+# says why stable.
+#
+# name   version  repository                 sha256                                                            archive
+coder    2.38.6   https://helm.coder.com/v2  13df6ebe418849d05c314671841b25006dfc719a94ccd1890c9661dea82289d6  https://helm.coder.com/v2/coder_helm_2.38.6.tgz

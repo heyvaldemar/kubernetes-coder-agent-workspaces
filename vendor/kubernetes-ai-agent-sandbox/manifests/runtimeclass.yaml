@@ -1,0 +1,16 @@
+# gVisor's runsc as a runtime class. A pod that names it runs on gVisor's
+# user-space kernel (the Sentry), which answers the pod's system calls itself
+# instead of passing them to the host kernel. A kernel bug reachable from the
+# pod is a bug in the Sentry, not in the node.
+#
+# The overhead is what the Sentry and its gofer cost per pod; the scheduler
+# and the namespace quota count it on top of the containers' own requests.
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: gvisor
+handler: runsc
+overhead:
+  podFixed:
+    cpu: 10m
+    memory: 32Mi

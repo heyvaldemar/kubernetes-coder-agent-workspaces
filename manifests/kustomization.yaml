@@ -1,0 +1,12 @@
+# This repository's own manifests. The sandbox's (vendor/) are applied before
+# them by scripts/install-coder.sh, from the verbatim copies; the Coder server
+# is the Helm chart pinned in charts.lock, with helm/values.yaml.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespaces.yaml
+  - admission.yaml
+  - postgres.yaml
+  - corp.yaml
+  - quota.yaml
+  - network-policies.yaml

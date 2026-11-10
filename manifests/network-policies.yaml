@@ -1,0 +1,188 @@
+# The walls, as NetworkPolicy. Each namespace denies everything and opens
+# only what it needs.
+#
+# A workspace reaches two things: its resolver, which answers for the
+# cluster's names only and relays nothing (vendor/.../agent-dns.yaml), and the
+# Coder server on 8080, the one port the server listens on. The agent's API
+# calls and its relay traffic (DERP) both go there; with direct connections
+# blocked on the server (helm/values.yaml), nothing ever connects in to a
+# workspace, so it takes no ingress at all.
+#
+# The Coder server takes connections from workspaces, and reaches its
+# Postgres, the cluster's DNS, the API server (to create workspaces; that rule
+# names the API server's address, so scripts/install-coder.sh writes it), and
+# the internet on 443 for the Terraform providers a template build downloads.
+# Not the rest of the cluster, and not the metadata service. What it actually
+# dials is measured, not assumed (README, "What the control plane dials").
+#
+# Postgres takes connections from the Coder server and from nothing else.
+# corp refuses every namespace labelled as a sandbox, the sandbox's second
+# wall. The resolver's ingress rule is the one the sandbox keeps in its own
+# network-policies.yaml, copied here because that file also holds the
+# policies of the sandbox's own namespaces (docs/decisions/0003-...).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: coder-workspaces
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: coder-workspaces
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: agent-dns
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: agent-dns
+      ports:
+        - {protocol: UDP, port: 1053}
+        - {protocol: TCP, port: 1053}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-coder-server
+  namespace: coder-workspaces
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: coder
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: coder
+      ports:
+        - {protocol: TCP, port: 8080}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: coder
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coder-server
+  namespace: coder
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: coder
+  policyTypes: [Ingress, Egress]
+  # The server also calls its own access URL, through its Service: its health
+  # report checks that the URL and its relay answer.
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: coder-workspaces
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: coder
+      ports:
+        - {protocol: TCP, port: 8080}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: coder
+      ports:
+        - {protocol: TCP, port: 8080}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - {protocol: TCP, port: 5432}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+              - 169.254.0.0/16
+      ports:
+        - {protocol: TCP, port: 443}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres
+  namespace: coder
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: coder
+      ports:
+        - {protocol: TCP, port: 5432}
+---
+# The sandbox's second wall: every namespace may reach corp except a sandbox.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: refuse-sandboxes
+  namespace: corp
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - {key: sandbox.heyvaldemar.com/agents, operator: DoesNotExist}
+---
+# The workspaces' resolver takes queries from sandbox namespaces only, and its
+# one way out, to the API server, is written by scripts/install-coder.sh.
+# Copied from the sandbox's manifests/network-policies.yaml at v1.4.0.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: from-agents-only
+  namespace: agent-dns
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              sandbox.heyvaldemar.com/agents: "true"
+      ports:
+        - {protocol: UDP, port: 1053}
+        - {protocol: TCP, port: 1053}

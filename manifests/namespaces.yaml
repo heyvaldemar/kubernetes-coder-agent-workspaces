@@ -1,0 +1,48 @@
+# coder: the Coder server and its Postgres. The server is also Coder
+# Community's provisioner: it runs Terraform for every template, in-process,
+# with its own ServiceAccount (docs/decisions/0004-the-provisioner-is-the-server.md).
+#
+# coder-workspaces: where every workspace runs. Two labels bind two
+# admission policies:
+#   sandbox.heyvaldemar.com/agents   the sandbox's own policy, copied verbatim
+#                                    from kubernetes-ai-agent-sandbox v1.4.0
+#                                    (vendor/), with its resolver's rule
+#   coder.heyvaldemar.com/workspaces this repository's policy (admission.yaml)
+# Pod Security "restricted" underneath both.
+#
+# corp: stands for everything else in the cluster a workspace must not reach.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: coder
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: coder-workspaces
+  labels:
+    sandbox.heyvaldemar.com/agents: "true"
+    coder.heyvaldemar.com/workspaces: "true"
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: corp
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+# The namespace's default ServiceAccount mounts no token even when a pod does
+# not say so. Admission refuses a workspace pod that does not say so anyway;
+# this is the second line.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default
+  namespace: coder-workspaces
+automountServiceAccountToken: false

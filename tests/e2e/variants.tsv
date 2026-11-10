@@ -1,0 +1,27 @@
+# The tampered template's variants (tests/e2e/tampered/main.tf), and what
+# each must get from the cluster: a substring of the refusal in the build log,
+# "admitted" for a control, or "measured" for a finding reported rather than
+# gated. Who refuses is in the third column.
+#
+# variant	expect	refused by
+none	admitted	(control: the tampered template unchanged)
+no-gvisor	an agent pod runs on gVisor	the sandbox's policy
+api-token	an agent pod gets no Kubernetes API token	the sandbox's policy
+api-audience-token	a token in an agent pod is for the MCP server only	the sandbox's policy
+image-by-tag	every image is referenced by digest	the sandbox's policy
+no-limits	every container declares CPU and memory limits	the sandbox's policy
+writable-root	every container runs with a read-only root filesystem	the sandbox's policy
+secret-env	an agent pod takes no Secret into its environment	the sandbox's policy
+other-image	a workspace runs the pinned workspace image	this repository's policy
+privileged	privileged (container "dev" must not set securityContext.privileged=true)	Pod Security restricted
+host-path	restricted volume type "hostPath"	Pod Security restricted
+host-network	host namespaces (hostNetwork=true)	Pod Security restricted
+root	runAsUser=0	Pod Security restricted
+capability	unrestricted capabilities (container "dev" must not include "NET_ADMIN"	Pod Security restricted
+other-namespace	cannot create resource "pods" in API group "" in the namespace "default"	the provisioner's RBAC
+network-policy	cannot create resource "networkpolicies"	the provisioner's RBAC
+namespace	cannot create resource "namespaces"	the provisioner's RBAC
+cluster-role-binding	cannot create resource "clusterrolebindings"	the provisioner's RBAC
+service	cannot create resource "services"	the provisioner's RBAC
+deployment	cannot create resource "deployments"	the provisioner's RBAC
+other-home	measured	nothing: the boundary is the namespace, not the workspace

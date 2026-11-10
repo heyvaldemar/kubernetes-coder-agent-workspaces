@@ -1,0 +1,32 @@
+# Keeps the pinned GitHub Actions and the templates' Terraform providers
+# current. The providers' two directories move together, in one pull
+# request, with their lock files: scripts/validate.sh refuses a tampered
+# fixture whose providers differ from the real template's. Images, the chart,
+# the CLI tools and the sandbox's vendored files are pinned by digest or hash
+# in files Dependabot does not read; they are moved by hand, with the new
+# hash checked against the publisher's (scripts/check-freshness.py and
+# scripts/check-vendor.py --upstream report when upstream has moved).
+#
+# Grouped: one pull request per week per ecosystem is a queue that gets read.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+  - package-ecosystem: terraform
+    directories:
+      - /templates/agent-workspace
+      - /tests/e2e/tampered
+    schedule:
+      interval: weekly
+    groups:
+      terraform-providers:
+        patterns: ["*"]
+    commit-message:
+      prefix: deps

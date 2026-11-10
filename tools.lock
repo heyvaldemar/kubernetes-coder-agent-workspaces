@@ -1,0 +1,22 @@
+# The command-line tools CI and `make` use, pinned by version and sha256 for
+# each platform. scripts/install-tools.sh downloads them into .cache/bin and
+# refuses any file whose hash differs: a release asset replaced upstream is a
+# binary nobody here has run.
+#
+# Hashes were checked against each publisher's own checksum file: kind,
+# kubectl and kubeconform as in the sandbox repository, helm against
+# get.helm.sh's .sha256sum files, and the coder CLI against
+# coder_2.38.6_checksums.txt on the v2.38.6 release, which Coder signs.
+# The coder CLI is the same version as the server (charts.lock).
+#
+# name  version  platform  url  member-in-archive  sha256
+kind v0.33.0 linux-amd64 https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64 kind aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+kind v0.33.0 darwin-arm64 https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-darwin-arm64 kind 0c8c7dbe5e23594a198b786c4bc13dacc101fa6196b0cb0b23a1ca44e61f4b4f
+kubectl v1.37.1 linux-amd64 https://dl.k8s.io/release/v1.37.1/bin/linux/amd64/kubectl kubectl 65691ff77eb6fa44c908b77a1082c9f092c3b9733b5cefabec0d1104890e21a8
+kubectl v1.37.1 darwin-arm64 https://dl.k8s.io/release/v1.37.1/bin/darwin/arm64/kubectl kubectl fd65982c97ddad3106754b69ffa196d0e543aa591930ae52aed1adfb92f8c77f
+kubeconform v0.8.0 linux-amd64 https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz kubeconform 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+kubeconform v0.8.0 darwin-arm64 https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-darwin-arm64.tar.gz kubeconform f84f4dfbebf4a6b0b230385fa065a39ea35e02608c2b50d025dcf64775a69d67
+helm v4.3.1 linux-amd64 https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz linux-amd64/helm 0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b
+helm v4.3.1 darwin-arm64 https://get.helm.sh/helm-v4.3.1-darwin-arm64.tar.gz darwin-arm64/helm 6b4e61c8cd27d99e5a801e63ff25dd5c70b36875c2cd659d3e9ce6b76fc23198
+coder v2.38.6 linux-amd64 https://github.com/coder/coder/releases/download/v2.38.6/coder_2.38.6_linux_amd64.tar.gz coder 9c21d542c66b514c935c863545aa8e83f852ade11a4cfba05eaa3c709a32b080
+coder v2.38.6 darwin-arm64 https://github.com/coder/coder/releases/download/v2.38.6/coder_2.38.6_darwin_arm64.zip coder cae72fa23ef96bbc5a171dd027203ffd85c2f12f97d55c78355ffb5a6d797f16

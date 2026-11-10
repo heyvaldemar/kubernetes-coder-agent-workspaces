@@ -1,0 +1,62 @@
+name: Server egress
+
+# What the Coder server looks up on its own, measured twice on fresh
+# clusters: with this repository's settings (helm/values.yaml) and with
+# Coder's defaults for the same settings (tests/egress/values-defaults.yaml),
+# the server's way to the internet closed so nothing a default dials is
+# sent. Each run's table is in its job summary; the README's table "What the
+# control plane dials" cites a run of this workflow. The e2e gates the
+# reference half on every change; this is the half that shows the
+# measurement can see a name when one is dialled.
+#
+# Weekly and by hand. It writes no badge and gates nothing.
+on:
+  schedule:
+    - cron: "13 6 * * 3"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - tests/egress/**
+      - scripts/dns-log.sh
+      - helm/values.yaml
+      - .github/workflows/server-egress.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-egress-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    name: The Coder server's own lookups (${{ matrix.profile }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [reference, defaults]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned tools
+        run: ./scripts/install-tools.sh >> "$GITHUB_PATH"
+
+      - name: Create the kind cluster (the sandbox's kind/cluster.yaml)
+        run: kind create cluster --name coder-workspaces --config vendor/kubernetes-ai-agent-sandbox/kind/cluster.yaml --wait 120s
+
+      - name: Install gVisor (the sandbox's install-gvisor.sh)
+        run: ./vendor/kubernetes-ai-agent-sandbox/scripts/install-gvisor.sh coder-workspaces
+
+      - name: Log the cluster's DNS queries
+        run: ./scripts/dns-log.sh on
+
+      - name: Install Coder and read what it looks up
+        env:
+          PROFILE: ${{ matrix.profile }}
+        run: ./tests/egress/run.sh "$PROFILE"
