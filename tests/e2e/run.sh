@@ -145,6 +145,11 @@ step "2. control: a template, a workspace, a command inside"
 session || fail "no session with the Coder server"
 server_started="$(kubectl -n coder get pods -l app.kubernetes.io/name=coder -o jsonpath='{.items[0].status.startTime}')"
 first_build="$(now)"
+# The resolver's log is read to the second, and both windows include their
+# boundary second: two seconds apart, a lookup of the first push cannot land
+# in the window before it (run 42918598702 counted terraform init's lookups,
+# made in the same second, as the server's own).
+sleep 2
 if coder templates push agent-workspace -d "$ROOT/templates/agent-workspace" --variable github_external_auth=true --yes >"$work/push.log" 2>&1; then
   pass "the template is pushed with the CLI"
 else fail "template push: $(tail -5 "$work/push.log")"; fi
