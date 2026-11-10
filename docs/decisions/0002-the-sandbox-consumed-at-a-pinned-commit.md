@@ -31,6 +31,7 @@ Measured on the first build, 2026-11-10: the sandbox's policy, verbatim, admits 
 | This repository adds one policy, `coder-workspace` (`manifests/admission.yaml`): images from the pinned workspace repository and the sandbox's busybox only | no rule on where an image comes from | a template author chooses the image; the cluster takes that choice back |
 | Coder's agent token is an environment value in the pod spec | admission refuses a Secret in an agent pod's environment, and lists a pasted credential as a residual risk | Coder's templates hand the token over that way; the sandbox policy allows a plain value, which is the residual risk it already names. ADR 5 measures what the token reaches |
 | The agent binary is downloaded at start into `/tmp`, an emptyDir | agents run code from their image | `coder_agent.init_script` fetches it from the Coder server, the one address a workspace reaches; the root stays read-only, as the sandbox's policy requires |
+| The sandbox's boundary probe (`probes/boundary_probe.py`) does not run in workspaces | it runs on every Verify, and in Docker Sandboxes by hand | Coder's minimal image has no Python, and most of the probe's attempts are aimed at a microVM's host (its files, its Docker socket, its shell's environment). `tests/e2e/inside.sh` asks a pod's version of each question that applies, in the agents' JSON format |
 
 The MCP server and the sandbox's demo agents are not used: a Coder workspace's door is the Coder server (ADR 3).
 
