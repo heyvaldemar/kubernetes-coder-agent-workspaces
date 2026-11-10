@@ -18,5 +18,5 @@ kubeconform v0.8.0 linux-amd64 https://github.com/yannh/kubeconform/releases/dow
 kubeconform v0.8.0 darwin-arm64 https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-darwin-arm64.tar.gz kubeconform f84f4dfbebf4a6b0b230385fa065a39ea35e02608c2b50d025dcf64775a69d67
 helm v4.3.1 linux-amd64 https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz linux-amd64/helm 0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b
 helm v4.3.1 darwin-arm64 https://get.helm.sh/helm-v4.3.1-darwin-arm64.tar.gz darwin-arm64/helm 6b4e61c8cd27d99e5a801e63ff25dd5c70b36875c2cd659d3e9ce6b76fc23198
-coder v2.38.6 linux-amd64 https://github.com/coder/coder/releases/download/v2.38.6/coder_2.38.6_linux_amd64.tar.gz coder 9c21d542c66b514c935c863545aa8e83f852ade11a4cfba05eaa3c709a32b080
+coder v2.38.6 linux-amd64 https://github.com/coder/coder/releases/download/v2.38.6/coder_2.38.6_linux_amd64.tar.gz ./coder 9c21d542c66b514c935c863545aa8e83f852ade11a4cfba05eaa3c709a32b080
 coder v2.38.6 darwin-arm64 https://github.com/coder/coder/releases/download/v2.38.6/coder_2.38.6_darwin_arm64.zip coder cae72fa23ef96bbc5a171dd027203ffd85c2f12f97d55c78355ffb5a6d797f16
