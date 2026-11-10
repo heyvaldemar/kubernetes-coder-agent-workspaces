@@ -8,7 +8,10 @@
 #   names  prints the outside names the pods matching the selector asked for,
 #          one per line with a count, sorted: the cluster's own names and the
 #          search-path expansions of a name are left out. With FROM and TO
-#          (RFC 3339, UTC), only the queries logged between the two.
+#          (RFC 3339, UTC), only the queries logged between the two. The last
+#          line, "#total<TAB>n", counts every query those pods made in the
+#          window, cluster names included, so a caller can tell an empty list
+#          from a blind one.
 #
 # The e2e turns it on before Coder is installed, so the server's first
 # minutes are in the log. It changes nothing a workspace can reach: the
@@ -38,9 +41,12 @@ PY
     # resolver library at work, not a destination.
     pod="$(kubectl -n "$ns" get pods -l "$selector" -o jsonpath='{.items[0].metadata.name}')"
     search="$(kubectl -n "$ns" exec "$pod" -- cat /etc/resolv.conf 2>/dev/null | awk '$1 == "search" {$1 = ""; print}')"
-    logs=""
+    # The log goes to python in a file: a whole run's queries are far longer
+    # than a command line may be (run 42917631988 hit "Argument list too long").
+    logs="$(mktemp)"
+    trap 'rm -f "$logs"' EXIT
     for pod in $(kubectl -n kube-system get pods -l k8s-app=kube-dns -o name); do
-      logs+="$(kubectl -n kube-system logs --timestamps "$pod" 2>/dev/null)"$'\n'
+      kubectl -n kube-system logs --timestamps "$pod" >>"$logs"
     done
     python3 - "$ips" "$logs" "$search" "${FROM:-}" "${TO:-}" <<'PY'
 import collections, re, sys
@@ -49,20 +55,25 @@ start, end = sys.argv[4][:19], sys.argv[5][:19]
 search = [d.lower().rstrip(".") for d in sys.argv[3].split()] + ["cluster.local"]
 # [INFO] 10.244.0.9:41432 - 5207 "A IN telemetry.coder.com. udp 37 false 512" NOERROR ...
 line = re.compile(r'\[INFO\] (\S+):\d+ - \d+ "(\S+) IN (\S+?)\.? ')
-seen = collections.Counter()
-for raw in sys.argv[2].splitlines():
-    m = line.search(raw)
-    if not m or m.group(1) not in ips:
-        continue
-    at = raw[:19]  # kubectl's --timestamps prefix, UTC
-    if (start and at < start) or (end and at > end):
-        continue
-    name = m.group(3).lower()
-    if any(name == d or name.endswith("." + d) for d in search) or name.endswith((".in-addr.arpa", ".ip6.arpa")):
-        continue
-    seen[name] += 1
+seen, total = collections.Counter(), 0
+with open(sys.argv[2], encoding="utf-8", errors="replace") as f:
+    for raw in f:
+        m = line.search(raw)
+        if not m or m.group(1) not in ips:
+            continue
+        at = raw[:19]  # kubectl's --timestamps prefix, UTC
+        if (start and at < start) or (end and at > end):
+            continue
+        total += 1
+        name = m.group(3).lower()
+        if any(name == d or name.endswith("." + d) for d in search) or name.endswith((".in-addr.arpa", ".ip6.arpa")):
+            continue
+        seen[name] += 1
 for name, count in sorted(seen.items()):
     print("%s\t%d" % (name, count))
+# Every query from those pods in the window, cluster names included: zero
+# means the measurement saw nothing, and an empty list above proves nothing.
+print("#total\t%d" % total)
 PY
     ;;
   *) echo "usage: $0 on | names <namespace> <label-selector>" >&2; exit 2 ;;

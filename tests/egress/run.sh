@@ -37,8 +37,12 @@ fi
 started="$(kubectl -n coder get pods -l app.kubernetes.io/name=coder -o jsonpath='{.items[0].status.startTime}')"
 echo "the server started at $started; logging its lookups for ${window}s"
 sleep "$window"
-names="$(FROM="$started" ./scripts/dns-log.sh names coder app.kubernetes.io/name=coder)"
+raw="$(FROM="$started" ./scripts/dns-log.sh names coder app.kubernetes.io/name=coder)"
+names="$(grep -v '^#' <<<"$raw" || true)"
+total="$(awk -F'\t' '$1 == "#total" {print $2}' <<<"$raw")"
 printf '%s\n' "$names"
+echo "every lookup by the server in the window, cluster names included: ${total:-0}"
+if [ "${total:-0}" -eq 0 ]; then echo "the resolver logged nothing from the server: the measurement is blind" >&2; exit 1; fi
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   {

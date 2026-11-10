@@ -264,16 +264,30 @@ check "Postgres refuses a pod outside the boundary too: its own wall, the Coder 
 # --- 9 -----------------------------------------------------------------------
 step "9. what the Coder server looked up"
 last="$(now)"
-FROM="$server_started" TO="$first_build" "$ROOT/scripts/dns-log.sh" names coder app.kubernetes.io/name=coder >"$work/names-alone.tsv"
-FROM="$first_build" TO="$last" "$ROOT/scripts/dns-log.sh" names coder app.kubernetes.io/name=coder >"$work/names-builds.tsv"
+# A measurement that fails, or that saw no query at all, fails the step: an
+# empty list from a blind log would read as a pass (run 42917631988 did).
+read_names() {  # from to out
+  if ! FROM="$1" TO="$2" "$ROOT/scripts/dns-log.sh" names coder app.kubernetes.io/name=coder >"$3.raw"; then
+    fail "the resolver's log could not be read for $1 to $2"; : >"$3.raw"
+  fi
+  grep -v '^#' "$3.raw" >"$3" || true
+  awk -F'\t' '$1 == "#total" {print $2}' "$3.raw"
+}
+total_alone="$(read_names "$server_started" "$first_build" "$work/names-alone.tsv")"
+total_builds="$(read_names "$first_build" "$last" "$work/names-builds.tsv")"
 alone="$(cut -f1 "$work/names-alone.tsv" | paste -sd' ' -)"
 builds="$(cut -f1 "$work/names-builds.tsv" | paste -sd' ' -)"
-if [ -z "$alone" ]; then pass "from its start to the first template push, the Coder server looked up no outside name"; else
-  fail "on its own, the Coder server looked up: $alone"; fi
+if [ "${total_alone:-0}" -gt 0 ] && [ "${total_builds:-0}" -gt 0 ]; then
+  pass "control: the resolver logged the server's lookups, $total_alone before the first push and $total_builds after it, cluster names included"
+else
+  fail "control: the resolver logged ${total_alone:-no} lookups by the server before the first push and ${total_builds:-no} after it; the measurement is blind"
+fi
+if [ "${total_alone:-0}" -gt 0 ] && [ -z "$alone" ]; then pass "from its start to the first template push, the Coder server looked up no outside name"
+elif [ -n "$alone" ]; then fail "on its own, the Coder server looked up: $alone"; fi
 stray=""
 for n in $builds; do [[ " $BUILD_NAMES " == *" $n "* ]] || stray+="$n "; done
-if [ -n "$builds" ] && [ -z "$stray" ]; then pass "during $(grep -c . <<<"$variants") template builds and three pushes, it looked up Terraform's providers only: $builds"
-elif [ -z "$builds" ]; then fail "no name was logged during the builds, so the measurement saw nothing (is dns-log.sh on?)"
+if [ -n "$builds" ] && [ -z "$stray" ]; then pass "during two pushes and $(($(grep -c . <<<"$variants") + 2)) builds, it looked up Terraform's providers only: $builds"
+elif [ -z "$builds" ]; then fail "no outside name was logged during the builds, though Terraform downloads its providers then"
 else fail "during template builds the Coder server also looked up: $stray"; fi
 for n in $DEFAULT_DIALS; do
   if grep -qx "$n" <(cut -f1 "$work/names-alone.tsv" "$work/names-builds.tsv"); then fail "a default this repository turns off was dialled: $n"; fi
