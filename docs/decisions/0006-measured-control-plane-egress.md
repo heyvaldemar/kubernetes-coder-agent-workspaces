@@ -16,7 +16,7 @@ A boundary around workspaces says nothing about the server that manages them. Th
 
 ## Consequences
 
-- Measured on 2026-11-10, with the defaults: `telemetry.coder.com`, `api.github.com` (the update check), `stun.l.google.com` and `stun1` to `stun4`, and `checkpoint-api.hashicorp.com` (Terraform's own version check, which Coder runs at start). With `helm/values.yaml`: none of them. During template builds: `registry.terraform.io`, `releases.hashicorp.com`, `github.com` and `release-assets.githubusercontent.com`.
+- Measured on 2026-11-10 ([server-egress run 42918598713](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42918598713), e2e [run 42919422290](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42919422290)), with the defaults: `telemetry.coder.com`, `api.github.com` (the update check), `stun.l.google.com` and `stun1` to `stun4`, and `checkpoint-api.hashicorp.com` (Terraform's own version check, which Coder runs at start). With `helm/values.yaml`: none of them, and no outside name at all in 130 lookups over three minutes. During template builds: `registry.terraform.io`, `releases.hashicorp.com`, `github.com` and `release-assets.githubusercontent.com`.
 - Telemetry off is not silent on a deployment that once had it on: Coder records the setting in its database and, when it changes from on to off, sends one last report saying so (`ShouldReportTelemetryDisabled` in `coderd/telemetry/telemetry.go`). Measured on a reused database on 2026-11-10. Turn it off before the first start.
 - DNS shows names, not connections. A dial to an address with no lookup would not appear; nothing in Coder's defaults does that, and the server's network policy refuses private and link-local addresses anyway.
 

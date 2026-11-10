@@ -14,6 +14,10 @@ This repository runs Coder Community on Kubernetes with every workspace inside t
 
 It is a reference, not a product, and it does not run in production anywhere. It runs on kind in GitHub Actions, CPU only, at no cloud cost.
 
+![The e2e run: the sandbox's cluster and gVisor, Coder installed, then every check, from the workspace's kernel to the twenty edited templates and what the server looked up](docs/demo/e2e.gif)
+
+[Run 42919422290](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42919422290) on main, 83 checks in 4 minutes 47 seconds, replayed from its log by `scripts/cast-from-log.py`: the e2e refuses a node with swap, and Docker Desktop has swap, so it is recorded where it runs. The times are the log's own, waits cut to two seconds and played at half speed; GitHub's step headers and the summary `run.sh` repeats at its end are left out, and nothing is reworded. [`docs/demo/e2e.cast`](docs/demo/e2e.cast) replays it in a terminal (`asciinema play`).
+
 ## What is proven, and how
 
 Every line is a check in `tests/e2e/run.sh` on a fresh cluster, or in `scripts/validate.sh`. Each refusal is paired with a control that must succeed, so a check cannot pass because the environment refuses everything.
@@ -43,7 +47,7 @@ A workspace cannot work without its agent's token, and Coder's agent puts it in 
 | `/api/v2/workspaceagents/me/gitsshkey` | 200: the owner's Git SSH private key. The public half's hash matches the key the owner sees in their own account |
 | `/api/v2/workspaceagents/me/external-auth?id=github` | 200: a sign-in link and an empty token, since nobody links GitHub in CI. After the owner links an account, the same call returns the owner's GitHub token: that is how git works in a Coder workspace (`coderd/workspaceagents.go`), read in the code, not measured here |
 | Where the token can be read | the shell's environment and PID 1's inside the workspace; the pod spec outside it, by whoever may read pods in `coder-workspaces`: the provisioner, and cluster administrators |
-| The same token after the workspace is rebuilt | measured each run and printed with the results |
+| The same token after the workspace is rebuilt | 401: a rebuild gives the workspace a new token, and the one taken out before it stops working |
 
 So a fooled agent cannot act as a user, list workspaces or reach Kubernetes with its token. It can read the owner's git key and, once linked, the owner's GitHub token. The git key and the GitHub app's scopes are therefore the blast radius of one fooled agent, and whoever sets them up decides how large it is. [ADR 5](docs/decisions/0005-the-agent-token-measured.md) has the reasoning.
 
@@ -63,7 +67,7 @@ The first workspace I built from this template was refused before any of these e
 
 ## What the control plane dials
 
-The cluster's resolver logs every query during the e2e, and a name looked up is a name about to be dialled. [`.github/workflows/server-egress.yml`](.github/workflows/server-egress.yml) runs the same measurement weekly with Coder's defaults, the server's way to the internet closed so nothing is sent. Measured on 2026-11-10:
+The cluster's resolver logs every query during the e2e, and a name looked up is a name about to be dialled. [`.github/workflows/server-egress.yml`](.github/workflows/server-egress.yml) runs the same measurement weekly with Coder's defaults, the server's way to the internet closed so nothing is sent. Measured on 2026-11-10 in [run 42918598713](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42918598713): with the defaults the server looked up the eight names below in its first three minutes; with this repository's values it made 130 lookups in the same three minutes, every one a cluster name. The build row is from the e2e, [run 42919422290](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42919422290): 336 lookups of those four names during two template pushes and 24 workspace builds.
 
 | What | Name looked up | Setting | Coder's default | Here |
 |---|---|---|---|---|

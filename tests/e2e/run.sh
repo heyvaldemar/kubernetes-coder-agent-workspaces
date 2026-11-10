@@ -291,7 +291,8 @@ if [ "${total_alone:-0}" -gt 0 ] && [ -z "$alone" ]; then pass "from its start t
 elif [ -n "$alone" ]; then fail "on its own, the Coder server looked up: $alone"; fi
 stray=""
 for n in $builds; do [[ " $BUILD_NAMES " == *" $n "* ]] || stray+="$n "; done
-if [ -n "$builds" ] && [ -z "$stray" ]; then pass "during two pushes and $(($(grep -c . <<<"$variants") + 2)) builds, it looked up Terraform's providers only: $builds"
+# Builds: the e2e workspace's first, the restart's stop and start, one per variant.
+if [ -n "$builds" ] && [ -z "$stray" ]; then pass "during two pushes and $(($(grep -c . <<<"$variants") + 3)) builds, it looked up Terraform's providers only: $builds"
 elif [ -z "$builds" ]; then fail "no outside name was logged during the builds, though Terraform downloads its providers then"
 else fail "during template builds the Coder server also looked up: $stray"; fi
 for n in $DEFAULT_DIALS; do
