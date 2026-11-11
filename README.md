@@ -14,9 +14,9 @@ This repository runs Coder Community on Kubernetes with every workspace inside t
 
 It is a reference, not a product, and it does not run in production anywhere. It runs on kind in GitHub Actions, CPU only, at no cloud cost.
 
-![The e2e run: the sandbox's cluster and gVisor, Coder installed, then every check, from the workspace's kernel to the twenty edited templates and what the server looked up](docs/demo/e2e.gif)
+![The e2e run: the sandbox's cluster and gVisor, Coder installed, then every check, from the workspace's kernel to the twenty edited templates, the Coder Agents chat and what the server looked up](docs/demo/e2e.gif)
 
-[Run 42919422290](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42919422290) on main, 83 checks in 4 minutes 47 seconds, replayed from its log by `scripts/cast-from-log.py`: the e2e refuses a node with swap, and Docker Desktop has swap, so it is recorded where it runs. The times are the log's own, waits cut to two seconds and played at half speed; GitHub's step headers and the summary `run.sh` repeats at its end are left out, and nothing is reworded. [`docs/demo/e2e.cast`](docs/demo/e2e.cast) replays it in a terminal (`asciinema play`).
+[Run 42944155585](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42944155585) on main, 98 checks in 5 minutes 52 seconds, replayed from its log by `scripts/cast-from-log.py`: the e2e refuses a node with swap, and Docker Desktop has swap, so it is recorded where it runs. The times are the log's own, waits cut to two seconds and played at half speed; GitHub's step headers and the summary `run.sh` repeats at its end are left out, and nothing is reworded. [`docs/demo/e2e.cast`](docs/demo/e2e.cast) replays it in a terminal (`asciinema play`).
 
 ## What is proven, and how
 

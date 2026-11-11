@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-11
+
 ### Added
 
 - Coder Agents under the same boundary ([ADR 7](docs/decisions/0007-coder-agents-and-a-scripted-model.md)). `manifests/model/` is a model that has been talked into exfiltration, an OpenAI-compatible endpoint in its own namespace that only the Coder server reaches, answering from a fixed script; `tests/e2e/agents.py` registers it through Coder's API and starts a chat on the e2e workspace. E2e step 10: the agent's `execute` tool runs in the workspace on gVisor, and each of eight attempts the model asks for dies at the boundary; the model key stays with the Coder server; during the chat the server looks up no outside name, `tallyman-prod.coder.com` included. A static check refuses a model step that reads a credential without being marked secret.
@@ -36,5 +38,6 @@ All notable changes to this project are documented here. The format follows [Kee
 - The external-auth agent endpoint treats the presence of `listen` as on, whatever its value.
 - A template that names another workspace's claim mounts it: the boundary is the namespace. Measured on every run and listed as a residual risk.
 
-[Unreleased]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/releases/tag/v1.0.0
