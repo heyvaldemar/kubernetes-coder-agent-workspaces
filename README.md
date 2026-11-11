@@ -69,7 +69,7 @@ The first workspace I built from this template was refused before any of these e
 
 ## Coder Agents, and a model that has been talked into it
 
-Coder Agents runs its loop in the Coder server: it asks a model what to do, and runs the model's tool calls in a workspace. Community allows five agents at a time. [`manifests/model/model.py`](manifests/model/model.py) is a model that has been talked into exfiltration, an OpenAI-compatible endpoint in the cluster that answers from a fixed script, and only the Coder server can reach it. Step 10 of the e2e starts a chat with it on the e2e workspace ([ADR 7](docs/decisions/0007-coder-agents-and-a-scripted-model.md)):
+Coder Agents runs its loop in the Coder server: it asks a model what to do, and runs the model's tool calls in a workspace ([Coder Agents at v2.38.6](https://github.com/coder/coder/blob/v2.38.6/docs/ai-coder/agents/index.md)). On v2.38.6, Community licenses "support up to five concurrently active agents deployment-wide" ([licensing and usage](https://github.com/coder/coder/blob/v2.38.6/docs/ai-coder/agents/licensing-usage.md)). [`manifests/model/model.py`](manifests/model/model.py) is a model that has been talked into exfiltration, an OpenAI-compatible endpoint in the cluster that answers from a fixed script, and only the Coder server can reach it. Step 10 of the e2e starts a chat with it on the e2e workspace ([ADR 7](docs/decisions/0007-coder-agents-and-a-scripted-model.md)):
 
 | The model asks the agent to | What the workspace answered |
 |---|---|
