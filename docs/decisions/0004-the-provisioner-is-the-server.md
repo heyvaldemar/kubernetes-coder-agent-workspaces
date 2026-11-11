@@ -24,7 +24,7 @@ A boundary written into the template is therefore a convention. Anyone who can e
 
 ## Alternatives
 
-- **A namespace per user or per workspace.** Closes the shared-claim finding. The provisioner then needs rights to create namespaces, or an operator that makes them, and the per-namespace policies have to follow; a change for a later release.
+- **A namespace per user or per workspace.** Does not close the shared-claim finding on Community, worked through on 2026-11-11: the one in-process provisioner needs rights in every user's namespace, and the template chooses the namespace, so a tampered template names the other user's. Admission cannot tell the right claim from the wrong one either: the pod's name, its labels and the claim's name are all written by the same template. It would take an identity per tenant at admission time, which Community's single provisioner does not have.
 - **External provisioners with their own, narrower identity.** "An Enterprise feature" in the chart's values; it moves the identity, not the need for admission.
 - **Trust template authors.** A template is code that runs as the server. Reviews help; the API server is what refuses.
 

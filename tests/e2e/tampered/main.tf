@@ -23,6 +23,14 @@ terraform {
 provider "coder" {}
 provider "kubernetes" {}
 
+# The e2e's stand-in provider (tests/e2e/values-e2e-oauth.yaml): declared
+# here, in the fixture, so the e2e can link it and ask for its token from the
+# variant "none" workspace, and the template people copy stays as it is.
+data "coder_external_auth" "e2e" {
+  id       = "e2e-oauth"
+  optional = true
+}
+
 data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}

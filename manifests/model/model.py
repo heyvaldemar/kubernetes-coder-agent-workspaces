@@ -17,14 +17,27 @@ header. Standard library only.
     POST /v1/chat/completions   streaming (SSE) or not, tools or none
     GET  /v1/models             one model, "scripted"
     GET  /healthz
+
+It also stands in for an OAuth2 provider, the other outside service a Coder
+workspace's token reaches into: Coder's external authentication links the
+workspace owner's account with it, so the e2e can measure what the agent's
+token gets once an account is linked (README, "The one credential").
+
+    GET  /oauth/authorize       redirects straight back with a code
+    POST /oauth/token           exchanges the code for a fresh access token
+    GET  /oauth/userinfo        the token's owner, for Coder's validation
+
+The access token is random per exchange; only its sha256 is logged.
 """
 import hashlib
 import http.server
 import json
 import os
 import re
+import secrets
 import sys
 import time
+import urllib.parse
 
 # One step per tool call: (name, command, whether its output may hold a credential).
 SCRIPT = [
@@ -89,6 +102,8 @@ def record(step, content):
 class Handler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     seen = set()
+    codes = {}  # OAuth2 code -> redirect_uri
+    tokens = set()
 
     def log_message(self, *args):  # requests are logged as facts, not lines
         pass
@@ -102,6 +117,28 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        path, _, query = self.path.partition("?")
+        if path == "/oauth/authorize":
+            q = urllib.parse.parse_qs(query)
+            redirect, state = q.get("redirect_uri", [""])[0], q.get("state", [""])[0]
+            if not redirect or not state:
+                return self.reply(400, {"error": "invalid_request"})
+            code = secrets.token_urlsafe(16)
+            Handler.codes[code] = redirect
+            log(event="oauth_code_issued", client_id=q.get("client_id", [""])[0], pkce="code_challenge" in q)
+            sep = "&" if "?" in redirect else "?"
+            self.send_response(302)
+            self.send_header("Location", redirect + sep + urllib.parse.urlencode({"code": code, "state": state}))
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if path == "/oauth/userinfo":
+            auth = (self.headers.get("Authorization") or "").partition(" ")[2]
+            if auth in Handler.tokens:
+                log(event="oauth_validated", ok=True)
+                return self.reply(200, {"id": 1, "login": "e2e-owner", "name": "e2e owner"})
+            log(event="oauth_validated", ok=False)
+            return self.reply(401, {"error": "invalid_token"})
         if self.path.rstrip("/") in ("/healthz", ""):
             return self.reply(200, b"ok\n", "text/plain")
         if self.path.rstrip("/").endswith("/models"):
@@ -110,8 +147,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length") or 0)
+        raw = self.rfile.read(length) or b""
+        if self.path.partition("?")[0] == "/oauth/token":
+            return self.token(urllib.parse.parse_qs(raw.decode("utf-8", "replace")))
         try:
-            req = json.loads(self.rfile.read(length) or b"{}")
+            req = json.loads(raw or b"{}")
         except ValueError:
             return self.reply(400, {"error": {"message": "invalid JSON"}})
         if not self.path.rstrip("/").endswith("/chat/completions"):
@@ -137,6 +177,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.answer(req, call=call)
         log(event="script_done", steps=len(SCRIPT))
         return self.answer(req, text="Done. Every step is in the tool results above.")
+
+    def token(self, form):
+        code = form.get("code", [""])[0]
+        if form.get("grant_type", [""])[0] != "authorization_code" or code not in Handler.codes:
+            log(event="oauth_token_refused")
+            return self.reply(400, {"error": "invalid_grant"})
+        del Handler.codes[code]
+        token = secrets.token_urlsafe(32)
+        Handler.tokens.add(token)
+        log(event="oauth_token_issued", access_token_sha256=hashlib.sha256(token.encode()).hexdigest())
+        return self.reply(200, {"access_token": token, "token_type": "bearer", "expires_in": 3600})
 
     def answer(self, req, text=None, call=None):
         created, cid, model = int(time.time()), "chatcmpl-e2e-%d" % time.time_ns(), req.get("model") or "scripted"

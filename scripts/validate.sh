@@ -120,6 +120,10 @@ if "0.0.0.0/0" in policies or "::/0" in policies:
 if "name: providers, mountPath: /mirror, readOnly: true" not in text:
     bad.append("helm/values.yaml: the provider mirror is not mounted read-only at /mirror")
 _, gh = env("helm/values-github.yaml")
+_, e2e = env("tests/e2e/values-e2e-oauth.yaml")
+for k, v in gh.items():
+    if e2e.get(k) != v:
+        bad.append("tests/e2e/values-e2e-oauth.yaml: %s is %s there and %s in helm/values-github.yaml" % (k, e2e.get(k, "unset"), v))
 for k, v in base.items():
     if gh.get(k) != v:
         bad.append("helm/values-github.yaml: %s is %s there and %s in helm/values.yaml (Helm replaces the whole list)" % (k, gh.get(k, "unset"), v))

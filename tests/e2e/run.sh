@@ -23,6 +23,8 @@
 #   6. the provisioner: what its ServiceAccount may and may not do, asked of
 #      the API server; then one build per variant of a tampered template
 #      (tests/e2e/variants.tsv), each refused for the reason it names
+#  6b. an account linked through Coder's own OAuth flow (a stand-in provider
+#      in the cluster), and what the agent's token gets then
 #   7. from a pod outside the boundary, the same targets answer
 #  10. Coder Agents: a chat driven by a scripted model (manifests/model/)
 #      runs its tools in the workspace; each attempt to get out dies at the
@@ -253,6 +255,52 @@ if [ "$seen" = "$marker" ]; then
   measure "tampered: other-home: a template that names another workspace's claim is admitted, and its workspace reads the file the other wrote; the boundary is the namespace, not the workspace (threat model)"
 else
   measure "tampered: other-home: did not read the other workspace's file (got '${seen:-nothing}')"
+fi
+
+# --- 6b ----------------------------------------------------------------------
+step "6b. a linked account, and what the agent's token gets then"
+# The owner links the stand-in provider (tests/e2e/values-e2e-oauth.yaml)
+# the way a browser would: Coder sends it to the provider with a state
+# cookie, the provider sends it back with a code, and Coder exchanges the
+# code itself, server-side. The browser's half runs through port-forwards on
+# 127.0.0.1; the session token reaches curl on stdin.
+session
+kubectl -n model port-forward --address 127.0.0.1 svc/model 7081:8080 >"$work/pf-model.log" 2>&1 &
+pf_model=$!
+for _ in $(seq 1 20); do curl -fsS --max-time 2 http://127.0.0.1:7081/healthz >/dev/null 2>&1 && break; sleep 1; done
+jar="$work/cookies"
+(umask 077; : >"$jar")
+as_owner() { printf 'header = "Coder-Session-Token: %s"\n' "$(cat "$CODER_CONFIG_DIR/session")"; }
+to_provider="$(as_owner | curl -s -o /dev/null -c "$jar" -b "$jar" -w '%{redirect_url}' --config - "$CODER_URL/external-auth/e2e-oauth/callback")"
+to_coder=""
+[[ "$to_provider" == http://127.0.0.1:7081/oauth/authorize* ]] && to_coder="$(curl -s -o /dev/null -w '%{redirect_url}' "$to_provider")"
+callback=""
+[[ "$to_coder" == "$CODER_URL/external-auth/e2e-oauth/callback?"* ]] &&
+  callback="$(as_owner | curl -s -o /dev/null -c "$jar" -b "$jar" -w '%{http_code}' --config - "$to_coder")"
+linked="$(as_owner | curl -s --max-time 10 --config - "$CODER_URL/api/v2/external-auth/e2e-oauth" | jq -r '.authenticated // false')"
+kill "$pf_model" 2>/dev/null
+rm -f "$jar"
+unset to_provider to_coder
+if [ "$linked" = true ]; then pass "control: the owner linked the stand-in provider through Coder's OAuth flow (callback HTTP $callback)"
+else fail "control: linking the stand-in provider did not take (callback HTTP ${callback:-not reached}, authenticated $linked)"; fi
+# From inside a workspace that declares the provider (the fixture's "none"
+# variant): the agent's token asks for the owner's token. Only its sha256
+# leaves the workspace; the provider logged the sha256 of what it issued.
+ssh_ready t-none || fail "the t-none workspace did not answer"
+# shellcheck disable=SC2016  # expanded inside the workspace
+got="$(coder ssh t-none -- bash -s <<'IN' 2>/dev/null
+out=$(mktemp)
+code=$(printf 'header = "Coder-Session-Token: %s"\n' "$CODER_AGENT_TOKEN" | curl -s -o "$out" -w '%{http_code}' --max-time 10 --config - 'http://coder.coder.svc.cluster.local/api/v2/workspaceagents/me/external-auth?id=e2e-oauth')
+printf '%s %s\n' "$code" "$(jq -r '.access_token // ""' "$out" | tr -d '\n' | sha256sum | cut -d' ' -f1)"
+rm -f "$out"
+IN
+)"
+read -r token_http token_hash <<<"$got"
+issued="$(kubectl -n model logs deployment/model 2>/dev/null | jq -r 'select(.event == "oauth_token_issued") | .access_token_sha256' 2>/dev/null | tail -1)"
+if [ "$token_http" = 200 ] && [ -n "$issued" ] && [ "$token_hash" = "$issued" ]; then
+  pass "once the owner has linked an account, the agent's token gets the owner's access token from inside the workspace: the very token the provider issued (sha256 ${issued:0:12})"
+else
+  fail "the agent's token asked for the linked token: HTTP ${token_http:-none}, sha256 ${token_hash:0:12} against the issued ${issued:0:12}"
 fi
 
 # --- 7 -----------------------------------------------------------------------

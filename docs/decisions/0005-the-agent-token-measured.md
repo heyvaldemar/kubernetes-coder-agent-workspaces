@@ -17,7 +17,7 @@ The e2e measures the token from both sides on every run, and the README reports 
 
 ## Consequences
 
-- What a fooled agent gets from the token is stated in numbers: the owner's Git SSH key, which Coder generates per user for git in workspaces, and the owner's external-auth tokens once the owner links an account. In CI nobody links one, so the call is answered with a sign-in link and an empty token; that the same call returns the token after linking is Coder's design for git in a workspace (`workspaceAgentsExternalAuth` in `coderd/workspaceagents.go`), read in the code, not measured here.
+- What a fooled agent gets from the token is stated in numbers: the owner's Git SSH key, which Coder generates per user for git in workspaces, and the owner's external-auth tokens once the owner links an account. Both halves are measured: for the GitHub provider, which nobody links in CI, the call is answered with a sign-in link and an empty token; for a stand-in OAuth2 provider in the cluster that the owner links through Coder's own flow (e2e step 6b, since v1.2.0), the call returns the owner's access token, the same token the provider issued. That is Coder's design for git in a workspace (`workspaceAgentsExternalAuth` in `coderd/workspaceagents.go`).
 - The token cannot leave the boundary on its own: the only thing a workspace reaches is the Coder server. It is the key's reach inside Coder that matters, and an exfiltration through the Coder server itself (a workspace app, a port forward a person opens) is out of what the network can see.
 - The Git SSH key works wherever the owner registered its public half. That is a decision for whoever registers it, and the threat model says so.
 

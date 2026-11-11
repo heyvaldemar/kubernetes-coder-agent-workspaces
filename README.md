@@ -47,7 +47,8 @@ A workspace cannot work without its agent's token, and Coder's agent puts it in 
 | The Kubernetes API, with the agent's token | 401 |
 | The Coder API as a user's session: `/api/v2/users/me`, `/api/v2/workspaces`, `/api/v2/templates`, `/api/v2/users` | 401 each |
 | `/api/v2/workspaceagents/me/gitsshkey` | 200: the owner's Git SSH private key. The public half's hash matches the key the owner sees in their own account |
-| `/api/v2/workspaceagents/me/external-auth?id=github` | 200: a sign-in link and an empty token, since nobody links GitHub in CI. After the owner links an account, the same call returns the owner's GitHub token: that is how git works in a Coder workspace (`coderd/workspaceagents.go`), read in the code, not measured here |
+| `/api/v2/workspaceagents/me/external-auth?id=github`, no account linked | 200: a sign-in link and an empty token |
+| The same call for a provider the owner has linked: a stand-in OAuth2 provider in the cluster, linked through Coder's own flow | 200: the owner's access token, the very token the provider issued (their sha256 match). That is how git gets its token in a Coder workspace |
 | Where the token can be read | the shell's environment and PID 1's inside the workspace; the pod spec outside it, by whoever may read pods in `coder-workspaces`: the provisioner, and cluster administrators |
 | The same token after the workspace is rebuilt | 401: a rebuild gives the workspace a new token, and the one taken out before it stops working |
 

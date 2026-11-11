@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-11
+
+### Added
+
+- The linked external-auth case, measured instead of read in the code. A stand-in OAuth2 provider (authorize, token, userinfo) joins the endpoint in `manifests/model/`; the e2e configures it as a second provider (`tests/e2e/values-e2e-oauth.yaml`), declares it in the tampered fixture only, and links it as the owner through Coder's own OAuth flow, the browser's half over port-forwards, the server's in the cluster. E2e step 6b: from inside a workspace the agent's token gets the owner's access token, and its sha256 is the one the provider logged when it issued it.
+
+### Changed
+
+- ADR 4 and the threat model said a namespace per user would close the shared-claim finding. It would not on Community: the one provisioner identity must reach every user's namespace and the template picks it, and admission cannot tell the right claim from the wrong one when the template writes every name it could compare. Both now say so.
+
 ## [1.1.0] - 2026-11-11
 
 ### Added
@@ -38,6 +48,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - The external-auth agent endpoint treats the presence of `listen` as on, whatever its value.
 - A template that names another workspace's claim mounts it: the boundary is the namespace. Measured on every run and listed as a residual risk.
 
-[Unreleased]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/releases/tag/v1.0.0

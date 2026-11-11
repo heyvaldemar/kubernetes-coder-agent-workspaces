@@ -65,6 +65,12 @@ print(json.dumps({"apiVersion": "v1", "kind": "Secret", "type": "Opaque",
                                  "client-secret": secrets.token_urlsafe(32)}}))
 PY
       echo "GitHub external auth: a placeholder Secret that names no app"
+    fi
+    # The e2e's second provider, the stand-in in manifests/model/ that the
+    # owner really links (tests/e2e/values-e2e-oauth.yaml).
+    if ! kubectl -n coder get secret coder-e2e-oauth >/dev/null 2>&1; then
+      python3 -c 'import json, secrets; print(json.dumps({"apiVersion": "v1", "kind": "Secret", "type": "Opaque", "metadata": {"name": "coder-e2e-oauth", "namespace": "coder"}, "stringData": {"client-secret": secrets.token_urlsafe(32)}}))' |
+        kubectl create -f - >/dev/null
     fi ;;
   app)
     kubectl -n coder get secret coder-github >/dev/null 2>&1 || {
@@ -150,6 +156,7 @@ if [ "$got" != "$sum" ]; then
 fi
 values=(-f helm/values.yaml)
 [ -n "${CODER_GITHUB:-}" ] && values+=(-f helm/values-github.yaml)
+[ "${CODER_GITHUB:-}" = placeholder ] && values+=(-f tests/e2e/values-e2e-oauth.yaml)
 for extra in ${CODER_VALUES:-}; do values+=(-f "$extra"); done
 helm upgrade --install coder "$chart" --namespace coder "${values[@]}" --wait --timeout 6m >/dev/null
 echo "installed: the Coder chart $version (sha256 checked), values ${values[*]}"
