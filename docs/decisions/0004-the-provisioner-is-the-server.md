@@ -25,7 +25,7 @@ A boundary written into the template is therefore a convention. Anyone who can e
 ## Alternatives
 
 - **A namespace per user or per workspace.** Closes the shared-claim finding. The provisioner then needs rights to create namespaces, or an operator that makes them, and the per-namespace policies have to follow; a change for a later release.
-- **External provisioners with their own, narrower identity.** A Premium feature; it moves the identity, not the need for admission.
+- **External provisioners with their own, narrower identity.** "An Enterprise feature" in the chart's values; it moves the identity, not the need for admission.
 - **Trust template authors.** A template is code that runs as the server. Reviews help; the API server is what refuses.
 
 ## How to explain this to a customer

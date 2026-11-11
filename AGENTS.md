@@ -6,7 +6,7 @@ Most of the code here is written by an AI agent, and the decisions and the verif
 
 Every row of the README's table "What is proven, and how" is a check that runs in CI: `tests/e2e/run.sh` on a fresh kind cluster with gVisor (`.github/workflows/e2e.yml`), or `scripts/validate.sh` with its planted violations (`.github/workflows/verify.yml`). The tables "The one credential" and "What the control plane dials" are measurements printed by the e2e and by `.github/workflows/server-egress.yml`; a value in them is pasted from a named run, never written. Each refusal is paired with a control that must succeed, so a check cannot pass because the environment refuses everything. A claim with no check is not written, and in `docs/threat-model.md` a control with no check is listed as a residual risk. It is a reference on kind, CPU only, at no cloud cost, and nothing says otherwise: no wording about running anywhere in production, about using Coder before this repository, or about any program, title or certification.
 
-Toward Coder, be exact and respectful. Its Premium features (AI Gateway, Agent Firewall, external provisioners, audit logging) are named as what they are and never imitated; this repository is the layer under any edition. Never "bypass", never "a free alternative".
+Toward Coder, be exact and respectful. Its licensed features (AI Gateway, Agent Firewall, audit logs, external provisioners, more than one replica) are named in Coder's own words with a link to where Coder says so, and never imitated; this repository is the layer under any edition. Never "bypass", never "a free alternative".
 
 ## Before changing anything
 

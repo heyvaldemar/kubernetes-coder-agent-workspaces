@@ -79,7 +79,7 @@ The cluster's resolver logs every query during the e2e, and a name looked up is 
 | Outside relays | none | `CODER_DERP_CONFIG_URL` | none, the embedded relay only | unchanged |
 | Terraform providers, at template push and build | `registry.terraform.io`, `releases.hashicorp.com`, `github.com`, `release-assets.githubusercontent.com` | none; a provider mirror in the cluster | on | on, TCP 443 only |
 
-One trap is measured too: telemetry off is not silent on a deployment that once had it on. Coder stores the setting in its database and, on the first start with it off, sends one report saying it was turned off. Turn it off before the first start. A provider mirror, which would take the last row off the internet, is the next release's work ([ADR 6](docs/decisions/0006-measured-control-plane-egress.md)).
+One trap turned up on the way, on a local kind cluster whose database had run with telemetry on, and was then read in the code: telemetry off is not silent on a deployment that once had it on. Coder stores the setting in its database and, on the first start with it off, sends one report saying it was turned off (`ShouldReportTelemetryDisabled` in `coderd/telemetry/telemetry.go`). That case is not run in CI. What CI runs is a fresh install with telemetry off from the start, and there the server looks up no outside name on its own, in every e2e run and in the egress run above. Turn it off before the first start. A provider mirror, which would take the last row off the internet, is the next release's work ([ADR 6](docs/decisions/0006-measured-control-plane-egress.md)).
 
 ## How it works
 
@@ -134,7 +134,7 @@ Nothing in a cloud. Coder, Postgres and the workspaces run on one kind node, CPU
 
 ## What it does not do
 
-The [threat model](docs/threat-model.md) lists every threat with its control and check, and what is not covered. The agent's token reaches the owner's git key and, once linked, the owner's GitHub token. The token sits in the pod spec, where anyone who may read pods in the namespace reads it. Workspaces share one namespace, so a template can mount another workspace's disk. Template builds still reach Terraform's registry on the internet. The access URL is plain HTTP inside the cluster. Coder's own governance for AI agents (AI Gateway, Agent Firewall) comes with a Premium license and is not used here: this repository is the layer under it, what the cluster lets a workspace be and reach, which any edition sits on.
+The [threat model](docs/threat-model.md) lists every threat with its control and check, and what is not covered. The agent's token reaches the owner's git key and, once linked, the owner's GitHub token. The token sits in the pod spec, where anyone who may read pods in the namespace reads it. Workspaces share one namespace, so a template can mount another workspace's disk. Template builds still reach Terraform's registry on the internet. The access URL is plain HTTP inside the cluster. Coder's own governance for AI agents, AI Gateway and Agent Firewall, requires a Premium license, and Community deployments cannot use it ([Coder's AI Governance page at v2.38.6](https://github.com/coder/coder/blob/v2.38.6/docs/ai-coder/ai-governance.md)); it is not used here: this repository is the layer under it, what the cluster lets a workspace be and reach, which any edition sits on.
 
 ## Repository
 

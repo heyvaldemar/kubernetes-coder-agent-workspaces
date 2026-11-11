@@ -15,14 +15,14 @@ Coder publishes two release channels. The 2026-11-03 releases name v2.39.0 a mai
 - The stable channel. `scripts/check-freshness.py` compares the chart and the CLI with Coder's stable release (GitHub's latest), not with the newest version in the chart index, which is mainline.
 - PostgreSQL from the official image, `postgres:17.11-alpine3.24` by digest, as one StatefulSet in `manifests/postgres.yaml`. Coder needs PostgreSQL 13 or later; its own Compose file uses 17. No bitnami chart or image.
 - Every server setting that differs from the chart's default is in `helm/values.yaml` with its reason, flag names taken from `codersdk/deployment.go` at v2.38.6.
-- Nothing Premium. External provisioner daemons, workspace proxies, high availability, audit logging and AI Governance (AI Gateway, Agent Firewall) are licensed features and are not used or imitated here. This repository is the layer under any edition: what the cluster lets a workspace be and reach.
+- Nothing Premium. External provisioner daemons, workspace proxies and more than one replica are marked "an Enterprise feature" in the chart's own values ([`helm/coder/values.yaml` at v2.38.6](https://github.com/coder/coder/blob/v2.38.6/helm/coder/values.yaml)); audit logs are Premium ([audit logs](https://github.com/coder/coder/blob/v2.38.6/docs/admin/security/audit-logs.md)); AI Gateway and Agent Firewall "require a Premium license. Community deployments cannot access these features" ([AI Governance](https://github.com/coder/coder/blob/v2.38.6/docs/ai-coder/ai-governance.md)). None of them is used or imitated here. This repository is the layer under any edition: what the cluster lets a workspace be and reach.
 
 ## Consequences
 
 - An install is the same bytes on every machine: the chart archive by hash, the images by digest, the CLI by hash (`tools.lock`).
 - Stable trails mainline by a release. A fix that ships only on mainline arrives here when Coder promotes it; the weekly freshness job says when stable moves.
 - Coder patches several release lines at once (2026-11-03: v2.39.0, v2.38.6, v2.37.10, v2.34.18, v2.29.26). A pin here needs the same upkeep as any other.
-- One server replica: high availability is a Premium feature, and on kind there is nothing to fail over to.
+- One server replica: more than one is "an Enterprise feature" in the chart's values, and on kind there is nothing to fail over to.
 
 ## Alternatives
 

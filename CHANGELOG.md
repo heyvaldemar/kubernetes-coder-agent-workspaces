@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-11
+
 ### Added
 
 - Coder Community v2.38.6 on kind, installed from its Helm chart archive by sha256 (`charts.lock`), the server image and the official PostgreSQL 17 image by digest, with every changed default in `helm/values.yaml` next to its reason.
@@ -17,8 +19,9 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Found while building it
 
 - The Terraform Kubernetes provider writes `runAsNonRoot=false` into a container's security context when the block leaves the field out, and Pod Security refuses the pod. The first build of the template was refused that way; the template now sets it per container.
-- With `CODER_TELEMETRY_ENABLE=false`, a server whose database once recorded telemetry on sends one report that it was turned off (`ShouldReportTelemetryDisabled`). A fresh install with it off sends nothing.
+- With `CODER_TELEMETRY_ENABLE=false`, a server whose database once recorded telemetry on sends one report that it was turned off (`ShouldReportTelemetryDisabled`). Seen on a local kind cluster with a reused database and read in the code; not run in CI. A fresh install with it off looks up no outside name on its own, which CI checks on every e2e run.
 - The external-auth agent endpoint treats the presence of `listen` as on, whatever its value.
 - A template that names another workspace's claim mounts it: the boundary is the namespace. Measured on every run and listed as a residual risk.
 
-[Unreleased]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/commits/main
+[Unreleased]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/releases/tag/v1.0.0
