@@ -10,3 +10,4 @@ Each record states the context, the decision, what it costs, what was considered
 | 4 | [The provisioner is the server, so the cluster holds the boundary](0004-the-provisioner-is-the-server.md) | accepted |
 | 5 | [The workspace's one credential, measured rather than described](0005-the-agent-token-measured.md) | accepted |
 | 6 | [What the control plane dials, measured from the resolver's log](0006-measured-control-plane-egress.md) | accepted |
+| 7 | [Coder Agents under the boundary, driven by a scripted model](0007-coder-agents-and-a-scripted-model.md) | accepted |

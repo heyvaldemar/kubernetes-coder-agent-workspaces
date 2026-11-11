@@ -112,6 +112,16 @@ spec:
               app.kubernetes.io/name: postgres
       ports:
         - {protocol: TCP, port: 5432}
+    # Coder Agents: the loop runs here and asks the model what to do next.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: model
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: model
+      ports:
+        - {protocol: TCP, port: 8080}
     - to:
         - namespaceSelector:
             matchLabels:

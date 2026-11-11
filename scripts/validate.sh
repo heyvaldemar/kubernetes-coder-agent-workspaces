@@ -14,6 +14,9 @@
 #                 version, a ClusterIP Service, and the provisioner's RBAC in
 #                 coder-workspaces only, without Deployments; the GitHub
 #                 values file carries every setting of the base one
+#   model         the scripted model and the e2e's chat driver compile, and
+#                 every step of the model's script that reads a credential is
+#                 marked so, so its output is never logged
 #   template      the templates: every image they name is one this
 #                 repository's policy admits, the tampered fixture pins the
 #                 same images, providers and lock file as the real template,
@@ -118,6 +121,23 @@ sys.exit(1 if bad else 0)
 PY
 }
 
+check_model() {
+  python3 - <<'PY'
+import ast, py_compile, sys
+for f in ("manifests/model/model.py", "tests/e2e/agents.py"):
+    py_compile.compile(f, doraise=True)
+tree = ast.parse(open("manifests/model/model.py").read())
+script = next(n.value for n in tree.body if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "SCRIPT")
+bad = []
+for step in ast.literal_eval(script):
+    name, command, secret = step
+    if any(s in command for s in ("CODER_AGENT_TOKEN", "gitsshkey", "external-auth", "printenv")) and not secret:
+        bad.append("model.py step %r reads a credential and is not marked secret: its output would be logged" % name)
+print("\n".join(bad) or "both compile; every step that reads a credential is marked secret")
+sys.exit(1 if bad else 0)
+PY
+}
+
 check_template() {
   python3 - <<'PY'
 import re, sys
@@ -154,7 +174,7 @@ PY
 }
 
 checks=("$@")
-[ ${#checks[@]} -eq 0 ] && checks=(kubeconform images vendor coder template)
+[ ${#checks[@]} -eq 0 ] && checks=(kubeconform images vendor coder model template)
 failed=0
 for c in "${checks[@]}"; do
   if "check_$c"; then echo "-- $c: ok"; else echo "-- $c: FAILED"; failed=1; fi

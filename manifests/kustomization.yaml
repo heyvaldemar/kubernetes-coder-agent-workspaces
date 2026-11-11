@@ -10,3 +10,11 @@ resources:
   - corp.yaml
   - quota.yaml
   - network-policies.yaml
+  - model/model.yaml
+configMapGenerator:
+  - name: model
+    namespace: model
+    files:
+      - model/model.py
+generatorOptions:
+  disableNameSuffixHash: true

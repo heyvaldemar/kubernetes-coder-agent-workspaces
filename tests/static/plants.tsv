@@ -14,3 +14,4 @@
 "templates/agent-workspace/main.tf"	"workspace_image = \"docker.io/codercom/example-minimal@sha256:"	"workspace_image = \"docker.io/codercom/example-base@sha256:"	"template"	"a template image the policy does not admit"
 "tests/e2e/tampered/main.tf"	"      version = \"3.5.0\""	"      version = \"3.4.0\""	"template"	"the tampered fixture on another provider version"
 "tests/e2e/variants.tsv"	"service\tcannot create resource \"services\"\tthe provisioner's RBAC\n"	""	"template"	"a tampered variant with no expected refusal"
+"manifests/model/model.py"	"     \"printenv CODER_AGENT_TOKEN\", True),"	"     \"printenv CODER_AGENT_TOKEN\", False),"	"model"	"a model step that reads the agent's token, logged as if it were not secret"

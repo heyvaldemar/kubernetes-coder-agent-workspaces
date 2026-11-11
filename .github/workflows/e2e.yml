@@ -5,7 +5,8 @@ name: Coder workspaces e2e
 # workspace started through Coder, the workspace on gVisor reaching the Coder
 # server and nothing else, its one credential measured, the provisioner's
 # rights asked of the API server, twenty edited templates refused, the same
-# targets answering from outside, and what the server looked up while it ran.
+# targets answering from outside, Coder Agents driven by a scripted model,
+# and what the server looked up while it ran.
 on:
   push:
     branches: [main]

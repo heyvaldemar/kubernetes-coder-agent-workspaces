@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- Coder Agents under the same boundary ([ADR 7](docs/decisions/0007-coder-agents-and-a-scripted-model.md)). `manifests/model/` is a model that has been talked into exfiltration, an OpenAI-compatible endpoint in its own namespace that only the Coder server reaches, answering from a fixed script; `tests/e2e/agents.py` registers it through Coder's API and starts a chat on the e2e workspace. E2e step 10: the agent's `execute` tool runs in the workspace on gVisor, and each of eight attempts the model asks for dies at the boundary; the model key stays with the Coder server; during the chat the server looks up no outside name, `tallyman-prod.coder.com` included. A static check refuses a model step that reads a credential without being marked secret (sixteen plants now).
+
+### Found while building it
+
+- With Coder Agents the model provider receives whatever a tool reads. The scripted model asked for `CODER_AGENT_TOKEN` and for the owner's Git SSH key through it, and both reached the model endpoint in the next request, over the control plane's connection, which the workspace's network policy never sees. Measured on every run, a residual risk in the threat model.
+
 ## [1.0.0] - 2026-11-11
 
 ### Added

@@ -70,3 +70,4 @@ Plain and specific. No em dashes, no marketing words, no claim the evidence does
 - Send anything to Coder from CI: the defaults measurement runs with the server's internet closed.
 - Open an issue, a pull request or a comment on Coder's projects, gVisor or any project not the maintainer's. A bug found upstream is written up for the maintainer.
 - Touch anything outside this repository's own CI to test a change: no cloud resources, no outside services.
+- Put a real model, or a real model provider's key, into CI. The model in `manifests/model/` is a script that is fooled the same way every run (ADR 7), and its key is generated per run. Its log holds facts about what it received, never a value: a step of its script that reads a credential is marked secret, and `scripts/validate.sh model` refuses one that is not.

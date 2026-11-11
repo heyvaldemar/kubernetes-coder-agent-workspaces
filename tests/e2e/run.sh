@@ -24,6 +24,9 @@
 #      the API server; then one build per variant of a tampered template
 #      (tests/e2e/variants.tsv), each refused for the reason it names
 #   7. from a pod outside the boundary, the same targets answer
+#  10. Coder Agents: a chat driven by a scripted model (manifests/model/)
+#      runs its tools in the workspace; each attempt to get out dies at the
+#      boundary, and what reaches the model endpoint is measured
 #   9. what the Coder server looked up while it ran, from the cluster
 #      resolver's log: nothing on its own, only Terraform's providers during
 #      template builds
@@ -47,8 +50,11 @@ WS=coder-workspaces
 # Coder's). Anything else the server asks for fails step 9.
 BUILD_NAMES="registry.terraform.io releases.hashicorp.com github.com release-assets.githubusercontent.com objects.githubusercontent.com"
 # What Coder's defaults dial, measured with tests/egress/values-defaults.yaml
-# (README, "What the control plane dials"). None may appear here.
-DEFAULT_DIALS="telemetry.coder.com api.github.com stun.l.google.com stun1.l.google.com stun2.l.google.com stun3.l.google.com stun4.l.google.com checkpoint-api.hashicorp.com"
+# (README, "What the control plane dials"), and where Coder Agents reports
+# usage on a licensed deployment (tallyman-prod.coder.com, in
+# enterprise/coderd/usage/publisher.go; Community has no license, so it must
+# never appear). None may appear here.
+DEFAULT_DIALS="tallyman-prod.coder.com telemetry.coder.com api.github.com stun.l.google.com stun1.l.google.com stun2.l.google.com stun3.l.google.com stun4.l.google.com checkpoint-api.hashicorp.com"
 results=()
 measured=()
 failed=0
@@ -266,6 +272,69 @@ if sed -n '/^Name:/,$p' <<<"$names" | grep -qE '^Address:? [0-9]'; then pass "ou
 pg="$(outside e2e-control-pg "$BUSYBOX" sh -c 'nc -w 5 postgres.coder.svc.cluster.local 5432 </dev/null && echo reached || echo blocked')"
 check "Postgres refuses a pod outside the boundary too: its own wall, the Coder server only" blocked "$(tail -1 <<<"$pg")"
 
+# --- 10 ----------------------------------------------------------------------
+step "10. Coder Agents, driven by a model that has been talked into it"
+# The model's key is generated here, kept in a file only this user reads, and
+# registered with the Coder server, which is the only thing that calls the
+# model. The script and what each step must show are in manifests/model/model.py.
+(umask 077; python3 -c 'import secrets; print(secrets.token_urlsafe(32))' >"$work/model-key")
+session
+chat_start="$(now)"
+sleep 2
+CODER_SESSION_TOKEN_FILE="$CODER_CONFIG_DIR/session" MODEL_KEY_FILE="$work/model-key" \
+  python3 "$HERE/agents.py" e2e >"$work/agents.jsonl" 2>"$work/agents.err" || fail "agents.py: $(tail -3 "$work/agents.err")"
+sleep 2
+chat_end="$(now)"
+kubectl -n model logs deployment/model >"$work/model.jsonl" 2>/dev/null
+agent_fact() { jq -r "select(.check == \"$1\") | $2" "$work/agents.jsonl" 2>/dev/null | head -1; }
+for c in provider model chat; do
+  if [ "$(agent_fact "$c" .ok)" = true ]; then pass "Coder Agents: the $c: $(agent_fact "$c" .detail)"
+  else fail "Coder Agents: the $c: $(agent_fact "$c" .detail)"; fi
+done
+# One line per step of the script, from the chat's own messages: the
+# control must run, every attempt to get out must die at the boundary.
+step_out() { jq -r "select(.check == \"tool\" and .call_id == \"call_e2e_$1\") | .output_head" "$work/agents.jsonl" 2>/dev/null; }
+blocked() { [[ "$1" == "000 exit="[1-9]* ]] || [[ "$1" == *"No such file or directory"* ]] || [[ "$1" == "no answer"* ]]; }
+out="$(step_out 00)"
+if [[ "$out" == *gvisor* ]]; then pass "Coder Agents: control: its execute tool ran in the workspace, on gVisor's kernel ($out)"
+else fail "Coder Agents: control: the execute tool answered '${out:-nothing}'"; fi
+i=1
+for what in "sending the task to the internet" "the internet by IP address" "cloud credentials from the metadata service" \
+            "the Kubernetes API" "a Kubernetes API token on disk" "another team's service" "data out through DNS" \
+            "the model endpoint, from the workspace"; do
+  out="$(step_out "$(printf '%02d' "$i")")"
+  if blocked "$out"; then pass "Coder Agents: the model asks for $what: blocked (${out//$'\n'/ })"
+  else fail "Coder Agents: the model asks for $what: expected blocked, got '${out:-nothing}'"; fi
+  i=$((i + 1))
+done
+# What reached the model endpoint, which is where a model provider would be:
+# the tool results go there by design, from the control plane, not through
+# the workspace's network.
+ws_pod="$(kubectl -n "$WS" get pods -l com.coder.workspace.name=e2e -o jsonpath='{.items[0].metadata.name}')"
+token="$(kubectl -n "$WS" get pod "$ws_pod" -o jsonpath='{.spec.containers[0].env[?(@.name=="CODER_AGENT_TOKEN")].value}')"
+token_hash="$(printf '%s' "$token" | sha256sum | cut -d' ' -f1)"
+unset token
+received_token="$(jq -r 'select(.event == "tool_result_received" and .step == 9) | .output_sha256' "$work/model.jsonl" 2>/dev/null | head -1)"
+received_key="$(jq -r 'select(.event == "tool_result_received" and .step == 10) | .has_private_key' "$work/model.jsonl" 2>/dev/null | head -1)"
+if [ -n "$received_token" ] && [ "$received_token" = "$token_hash" ]; then
+  measure "Coder Agents: the model asked for the agent's token with printenv, and the token reached the model endpoint in the next request"
+else
+  measure "Coder Agents: the agent's token did not reach the model endpoint (received hash ${received_token:-none})"
+fi
+if [ "$received_key" = true ]; then
+  measure "Coder Agents: the model asked for the owner's Git SSH key through the agent's token, and a private key reached the model endpoint"
+else
+  measure "Coder Agents: no private key reached the model endpoint (${received_key:-no record})"
+fi
+auth="$(jq -r 'select(.event == "agent_request") | .authorization' "$work/model.jsonl" 2>/dev/null | head -1)"
+key_in_pod="$(kubectl -n "$WS" get pod "$ws_pod" -o json | grep -cF -f "$work/model-key" || true)"
+if [[ "$auth" == present* ]] && [ "$key_in_pod" = 0 ]; then
+  pass "Coder Agents: the model key is the Coder server's (sent on every request, $auth) and appears nowhere in the workspace's pod"
+else
+  fail "Coder Agents: the model key: requests ${auth:-not seen}, in the workspace pod $key_in_pod times"
+fi
+rm -f "$work/model-key"
+
 # --- 9 -----------------------------------------------------------------------
 step "9. what the Coder server looked up"
 last="$(now)"
@@ -280,6 +349,12 @@ read_names() {  # from to out
 }
 total_alone="$(read_names "$server_started" "$first_build" "$work/names-alone.tsv")"
 total_builds="$(read_names "$first_build" "$last" "$work/names-builds.tsv")"
+total_chat="$(read_names "$chat_start" "$chat_end" "$work/names-chat.tsv")"
+chat_names="$(cut -f1 "$work/names-chat.tsv" | paste -sd' ' -)"
+if [ "${total_chat:-0}" -gt 0 ] && [ -z "$chat_names" ]; then
+  pass "during the Coder Agents chat the server made $total_chat lookups and none outside the cluster: the model is the in-cluster endpoint, and no usage report left"
+elif [ -n "$chat_names" ]; then fail "during the Coder Agents chat the server looked up: $chat_names"
+else fail "control: the resolver logged no lookup by the server during the chat"; fi
 alone="$(cut -f1 "$work/names-alone.tsv" | paste -sd' ' -)"
 builds="$(cut -f1 "$work/names-builds.tsv" | paste -sd' ' -)"
 if [ "${total_alone:-0}" -gt 0 ] && [ "${total_builds:-0}" -gt 0 ]; then
