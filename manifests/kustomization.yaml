@@ -9,6 +9,7 @@ resources:
   - postgres.yaml
   - corp.yaml
   - quota.yaml
+  - provider-mirror.yaml
   - network-policies.yaml
   - model/model.yaml
 configMapGenerator:

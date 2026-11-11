@@ -21,7 +21,7 @@ So the question this repository asks of a workspace has a second half. A model t
 - Measured on 2026-11-11 on a local kind cluster, and on every e2e run since: the agent's `execute` tool runs in the workspace with the agent's environment, so `printenv CODER_AGENT_TOKEN` prints the token, and a command that hands that token to `/api/v2/workspaceagents/me/gitsshkey` prints the owner's Git SSH private key. Both reached the model endpoint in the next request. The boundary saw none of it, and could not: tool results travel from the workspace to the Coder server over the workspace connection, and from the server to the model provider over the one path the server is meant to have.
 - So with Coder Agents the model provider is inside the trust boundary whether it is wanted there or not. Whatever a tool can read, the provider can receive. A model endpoint the operator runs (a gateway in the cluster, a self-hosted model) keeps that inside what the operator controls; a provider on the internet does not.
 - Coder's AI Gateway, a Premium feature, sits on the model traffic; this repository does not use it and claims nothing about what it would catch.
-- The control plane now needs egress to the model. Here that is one rule to an in-cluster namespace; to a provider on the internet it is the server's existing 443 rule.
+- The control plane now needs egress to the model. Here that is one rule to an in-cluster namespace; a provider on the internet needs `manifests/optional/coder-server-internet.yaml` (`CODER_SERVER_INTERNET=open`), and then it receives what the tools read.
 
 ## Alternatives
 

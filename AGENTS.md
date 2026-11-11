@@ -66,7 +66,7 @@ Plain and specific. No em dashes, no marketing words, no claim the evidence does
 - Print a secret or a credential, pass one as a command-line argument, or put one in a file or a log. The database password is generated at install and handed to kubectl on stdin; the first user's password goes to `coder login` in its environment; the e2e hands every token to curl on stdin (`curl --config -`) and reports a key by the hash of its public half.
 - Turn off or weaken a check, a policy, a test or a gate to get a run green.
 - Edit `vendor/`, or loosen what the sandbox's policy, this repository's policy, Pod Security `restricted` or the provisioner's Role hold workspaces to.
-- Open a workspace's egress past its resolver and the Coder server, give the provisioner a right outside `coder-workspaces`, or turn back on a dial `helm/values.yaml` turns off.
+- Open a workspace's egress past its resolver and the Coder server, give the provisioner a right outside `coder-workspaces`, turn back on a dial `helm/values.yaml` turns off, or give the Coder server a way to the internet anywhere but `manifests/optional/`.
 - Send anything to Coder from CI: the defaults measurement runs with the server's internet closed.
 - Open an issue, a pull request or a comment on Coder's projects, gVisor or any project not the maintainer's. A bug found upstream is written up for the maintainer.
 - Touch anything outside this repository's own CI to test a change: no cloud resources, no outside services.

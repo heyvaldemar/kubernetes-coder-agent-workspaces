@@ -15,3 +15,5 @@
 "tests/e2e/tampered/main.tf"	"      version = \"3.5.0\""	"      version = \"3.4.0\""	"template"	"the tampered fixture on another provider version"
 "tests/e2e/variants.tsv"	"service\tcannot create resource \"services\"\tthe provisioner's RBAC\n"	""	"template"	"a tampered variant with no expected refusal"
 "manifests/model/model.py"	"     \"printenv CODER_AGENT_TOKEN\", True),"	"     \"printenv CODER_AGENT_TOKEN\", False),"	"model"	"a model step that reads the agent's token, logged as if it were not secret"
+"helm/values.yaml"	"    - {name: TF_CLI_CONFIG_FILE, value: /mirror/terraform.rc}\n"	""	"coder"	"template builds sent back to the registry: no provider mirror"
+"manifests/network-policies.yaml"	"    - to:\n        - podSelector:\n            matchLabels:\n              app.kubernetes.io/name: postgres\n      ports:\n        - {protocol: TCP, port: 5432}\n"	"    - to:\n        - podSelector:\n            matchLabels:\n              app.kubernetes.io/name: postgres\n      ports:\n        - {protocol: TCP, port: 5432}\n    - to:\n        - ipBlock: {cidr: 0.0.0.0/0}\n"	"coder"	"the server's way to the internet back in the default policies"

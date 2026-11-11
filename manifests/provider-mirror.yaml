@@ -1,0 +1,23 @@
+# The Terraform providers a template build needs, on a volume the Coder server
+# mounts read-only, so a build reaches nothing outside the cluster.
+#
+# scripts/provider-mirror.sh fills it on the machine that installs (the
+# packages checked against the templates' lock file and their signatures);
+# scripts/install-coder.sh copies the mirror in through a short-lived loader
+# pod and writes terraform.rc next to it. The server's Terraform reads that
+# file (TF_CLI_CONFIG_FILE in helm/values.yaml): a filesystem mirror and no
+# direct installation, so a provider that is not in the mirror is an error,
+# never a download.
+#
+# ReadWriteOnce: on one node the loader and the server can share it. A
+# cluster with workspaces on many nodes would serve the same directory as a
+# network mirror, or bake it into an image.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: terraform-providers
+  namespace: coder
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 512Mi}

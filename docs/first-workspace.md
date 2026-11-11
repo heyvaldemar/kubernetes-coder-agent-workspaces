@@ -11,7 +11,7 @@ make up
 export PATH="$PWD/.cache/bin:$PATH"
 ```
 
-That is the sandbox's kind cluster and gVisor, then `scripts/install-coder.sh`: the sandbox's RuntimeClass, admission policy and resolver, this repository's namespaces, policy, Postgres and network policies, a database password generated and handed to kubectl on stdin, and the Coder chart from its archive by hash. It ends with four `ready:` lines.
+That is the sandbox's kind cluster and gVisor, then `scripts/install-coder.sh`: the sandbox's RuntimeClass, admission policy and resolver, this repository's namespaces, policy, Postgres and network policies, a database password generated and handed to kubectl on stdin, Terraform's providers downloaded on your machine into a mirror and copied onto a volume (so the Coder server needs no internet), and the Coder chart from its archive by hash. It ends with four `ready:` lines.
 
 ## 2. Sign in
 
@@ -57,7 +57,7 @@ Coder calls this external authentication. The server needs a GitHub OAuth app of
    unset gh_id gh_secret
    ```
 
-3. Install again with the GitHub values on top (`helm/values-github.yaml` reads `CODER_EXTERNAL_AUTH_0_CLIENT_ID`, `CODER_EXTERNAL_AUTH_0_CLIENT_SECRET` and `CODER_EXTERNAL_AUTH_0_REDIRECT_URL` from that Secret), then sign in again, since the server restarts:
+3. Install again with the GitHub values on top (`helm/values-github.yaml` reads `CODER_EXTERNAL_AUTH_0_CLIENT_ID`, `CODER_EXTERNAL_AUTH_0_CLIENT_SECRET` and `CODER_EXTERNAL_AUTH_0_REDIRECT_URL` from that Secret), then sign in again, since the server restarts. `CODER_GITHUB=app` also gives the server its one way to the internet, TCP 443 (`manifests/optional/coder-server-internet.yaml`), since GitHub's sign-in codes are exchanged from the server:
 
    ```bash
    CODER_GITHUB=app ./scripts/install-coder.sh

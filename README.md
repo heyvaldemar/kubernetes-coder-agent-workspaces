@@ -35,8 +35,8 @@ Every line is a check in `tests/e2e/run.sh` on a fresh cluster, or in `scripts/v
 | A template edited to step outside is refused by the API server | nineteen variants of one template, each built through Coder and refused for the reason it names ([below](#templates-edited-to-step-outside)); the unchanged template admitted |
 | Coder Agents works under the same boundary, and a fooled model gets nothing out through the workspace | a chat driven by a scripted model in the cluster runs its `execute` tool in the workspace on gVisor's kernel; each of eight attempts the model asks for dies at the boundary: the internet by name and by IP address, the metadata service, the Kubernetes API, an API token on disk, another namespace's service, DNS, the model endpoint from inside the workspace ([below](#coder-agents-and-a-model-that-has-been-talked-into-it)) |
 | The model's key stays in the control plane | the Coder server sends it on every request to the model; it appears nowhere in the workspace's pod |
-| The Coder server dials nothing on its own | from its start to the first template push it looks up no outside name; during builds, only Terraform's registry and provider downloads ([below](#what-the-control-plane-dials)) |
-| Every static check can fail | sixteen planted violations, each caught: telemetry back on, a STUN server, direct connections, the provisioner given Deployments or a second namespace, the GitHub values file dropping a setting, three images by tag, a misspelled policy field, the sandbox's policy edited in place, a file in `vendor/` the sandbox never shipped, a template image the policy does not admit, the tampered fixture on another provider version, a variant with no expected refusal, a model step that reads a credential logged as if it did not |
+| The Coder server reaches nothing outside the cluster | none of its network policies names an address outside the cluster but the API server's; from its start, through two template pushes, 24 builds and a Coder Agents chat, it looks up no outside name: Terraform reads its providers from a mirror on a read-only volume ([below](#what-the-control-plane-dials)) |
+| Every static check can fail | eighteen planted violations, each caught: telemetry back on, a STUN server, direct connections, the provisioner given Deployments or a second namespace, the GitHub values file dropping a setting, three images by tag, a misspelled policy field, the sandbox's policy edited in place, a file in `vendor/` the sandbox never shipped, a template image the policy does not admit, the tampered fixture on another provider version, a variant with no expected refusal, a model step that reads a credential logged as if it did not, the provider mirror dropped, the server's way to the internet put back in the default policies |
 
 ## The one credential
 
@@ -85,7 +85,7 @@ Every way out of the workspace held, and the last two rows are the finding. The 
 
 ## What the control plane dials
 
-The cluster's resolver logs every query during the e2e, and a name looked up is a name about to be dialled. [`.github/workflows/server-egress.yml`](.github/workflows/server-egress.yml) runs the same measurement weekly with Coder's defaults, the server's way to the internet closed so nothing is sent. Measured on 2026-11-10 in [run 42918598713](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42918598713): with the defaults the server looked up the eight names below in its first three minutes; with this repository's values it made 130 lookups in the same three minutes, every one a cluster name. The build row is from the e2e, [run 42919422290](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42919422290): 336 lookups of those four names during two template pushes and 24 workspace builds.
+The cluster's resolver logs every query during the e2e, and a name looked up is a name about to be dialled. [`.github/workflows/server-egress.yml`](.github/workflows/server-egress.yml) runs the same measurement weekly with Coder's defaults, the server's way to the internet closed so nothing is sent. Measured on 2026-11-10 in [run 42918598713](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42918598713): with the defaults the server looked up the eight names below in its first three minutes; with this repository's values it made 130 lookups in the same three minutes, every one a cluster name. Until v1.1.0 template builds looked up four names to download Terraform's providers (336 lookups over two pushes and 24 builds in e2e [run 42919422290](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42919422290)); now they read a mirror, and the server has no rule to the internet at all.
 
 | What | Name looked up | Setting | Coder's default | Here |
 |---|---|---|---|---|
@@ -95,9 +95,10 @@ The cluster's resolver logs every query during the e2e, and a name looked up is 
 | Direct, peer-to-peer connections | none at start | `CODER_BLOCK_DIRECT` | allowed | blocked: every session goes through the server's own relay |
 | Terraform's version check | `checkpoint-api.hashicorp.com` | `CHECKPOINT_DISABLE`, Terraform's own, passed through by Coder | on | off |
 | Outside relays | none | `CODER_DERP_CONFIG_URL` | none, the embedded relay only | unchanged |
-| Terraform providers, at template push and build | `registry.terraform.io`, `releases.hashicorp.com`, `github.com`, `release-assets.githubusercontent.com` | none; a provider mirror in the cluster | on | on, TCP 443 only |
+| Terraform providers, at template push and build | `registry.terraform.io`, `releases.hashicorp.com`, `github.com`, `release-assets.githubusercontent.com` | `TF_CLI_CONFIG_FILE`, Terraform's own, with a filesystem mirror | the registry | none: a mirror on a read-only volume, filled by the machine that installs |
+| Any connection out at all | | `manifests/optional/coder-server-internet.yaml` | open | closed; opened for GitHub sign-in or a model provider on the internet |
 
-One trap turned up on the way, on a local kind cluster whose database had run with telemetry on, and was then read in the code: telemetry off is not silent on a deployment that once had it on. Coder stores the setting in its database and, on the first start with it off, sends one report saying it was turned off (`ShouldReportTelemetryDisabled` in `coderd/telemetry/telemetry.go`). That case is not run in CI. What CI runs is a fresh install with telemetry off from the start, and there the server looks up no outside name on its own, in every e2e run and in the egress run above. Turn it off before the first start. A provider mirror, which would take the last row off the internet, is the next release's work ([ADR 6](docs/decisions/0006-measured-control-plane-egress.md)).
+One trap turned up on the way, on a local kind cluster whose database had run with telemetry on, and was then read in the code: telemetry off is not silent on a deployment that once had it on. Coder stores the setting in its database and, on the first start with it off, sends one report saying it was turned off (`ShouldReportTelemetryDisabled` in `coderd/telemetry/telemetry.go`). That case is not run in CI. What CI runs is a fresh install with telemetry off from the start, and there the server looks up no outside name on its own, in every e2e run and in the egress run above. Turn it off before the first start. The mirror's packages were checked against their signatures when the installing machine built it, and Terraform checks them against the templates' lock file again in the cluster ([ADR 6](docs/decisions/0006-measured-control-plane-egress.md)).).
 
 ## How it works
 
@@ -117,7 +118,7 @@ flowchart LR
   pod -->|DNS| resolver
   server --> pg
   server -->|create pods and claims in coder-workspaces| api((Kubernetes API))
-  server -->|TCP 443, template builds only| registry((Terraform registry))
+  server -->|read-only| mirror[(provider mirror)]
   server -->|Coder Agents: prompts and tool results| model[model endpoint]
   pod -.->|blocked| model
   pod -.->|blocked| api
@@ -132,7 +133,7 @@ flowchart LR
 - **This repository's policy** (`manifests/admission.yaml`): a workspace runs the pinned workspace image, and its gate the sandbox's busybox, written out in full.
 - **The workspace** (`templates/agent-workspace/main.tf`): Coder's minimal Ubuntu image by digest, on gVisor, read-only, no API token, the workspaces' resolver, and the sandbox's gate as an init container. The agent is fetched by Coder's own `init_script` from the Coder server into `/tmp`, an emptyDir. Terraform's providers are pinned by version and by hash in `.terraform.lock.hcl`.
 - **The server** (`helm/values.yaml`, [ADR 1](docs/decisions/0001-coder-community-on-kubernetes.md), [ADR 4](docs/decisions/0004-the-provisioner-is-the-server.md)): Coder's chart with every changed default written next to its reason: the dials above off, a read-only root, a ClusterIP Service, and its ServiceAccount, which is every template's identity, allowed pods and claims in `coder-workspaces` and nothing else.
-- **Network** (`manifests/network-policies.yaml`, [ADR 3](docs/decisions/0003-one-door-the-coder-server.md)): a workspace reaches the resolver and the Coder server; Postgres takes the server only; `corp` refuses sandbox namespaces; the server reaches Postgres, DNS, the API server and port 443 outside private ranges.
+- **Network** (`manifests/network-policies.yaml`, [ADR 3](docs/decisions/0003-one-door-the-coder-server.md)): a workspace reaches the resolver and the Coder server; Postgres takes the server only; `corp` refuses sandbox namespaces; the server reaches Postgres, DNS, the API server and the model endpoint, and nothing outside the cluster unless `manifests/optional/coder-server-internet.yaml` is applied.
 - **Secrets** (`scripts/install-coder.sh`): the database password is generated at install and handed to kubectl on stdin; the first user's password is generated by `scripts/coder-session.sh`, kept in a file only its owner can read, and given to `coder login` in its environment. Neither is ever on a command line or in a log.
 
 ## Quickstart
@@ -154,7 +155,7 @@ Nothing in a cloud. Coder, Postgres and the workspaces run on one kind node, CPU
 
 ## What it does not do
 
-The [threat model](docs/threat-model.md) lists every threat with its control and check, and what is not covered. The agent's token reaches the owner's git key and, once linked, the owner's GitHub token, and with Coder Agents whatever a tool reads reaches the model provider. The token sits in the pod spec, where anyone who may read pods in the namespace reads it. Workspaces share one namespace, so a template can mount another workspace's disk. Template builds still reach Terraform's registry on the internet. The access URL is plain HTTP inside the cluster. Coder's own governance for AI agents, AI Gateway and Agent Firewall, requires a Premium license, and Community deployments cannot use it ([Coder's AI Governance page at v2.38.6](https://github.com/coder/coder/blob/v2.38.6/docs/ai-coder/ai-governance.md)); it is not used here: this repository is the layer under it, what the cluster lets a workspace be and reach, which any edition sits on.
+The [threat model](docs/threat-model.md) lists every threat with its control and check, and what is not covered. The agent's token reaches the owner's git key and, once linked, the owner's GitHub token, and with Coder Agents whatever a tool reads reaches the model provider. The token sits in the pod spec, where anyone who may read pods in the namespace reads it. Workspaces share one namespace, so a template can mount another workspace's disk. The provider mirror holds what the installing machine downloaded, checked against the templates' lock file. The access URL is plain HTTP inside the cluster. Coder's own governance for AI agents, AI Gateway and Agent Firewall, requires a Premium license, and Community deployments cannot use it ([Coder's AI Governance page at v2.38.6](https://github.com/coder/coder/blob/v2.38.6/docs/ai-coder/ai-governance.md)); it is not used here: this repository is the layer under it, what the cluster lets a workspace be and reach, which any edition sits on.
 
 ## Repository
 
@@ -162,6 +163,7 @@ The [threat model](docs/threat-model.md) lists every threat with its control and
 vendor/kubernetes-ai-agent-sandbox/   the sandbox at v1.4.0, verbatim: kind, gVisor, RuntimeClass, policy, resolver
 manifests/                            namespaces, this repository's policy, Postgres, corp, quota, network policies
 manifests/model/                      the scripted model Coder Agents talks to, which only the Coder server reaches
+manifests/optional/                   the Coder server's way to the internet, for GitHub sign-in or an outside model
 helm/                                 the Coder chart's values, and the GitHub external auth values
 templates/agent-workspace/            the template, and its provider lock file
 tests/e2e/                            the checks against a running cluster, the checks run inside a workspace,

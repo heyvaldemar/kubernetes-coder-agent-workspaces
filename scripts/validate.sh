@@ -10,7 +10,8 @@
 #                 records, and nothing else is there (scripts/check-vendor.py)
 #   coder         the chart values keep what the README claims: telemetry, the
 #                 update check, STUN and direct connections off, Terraform's
-#                 version check off, the image by digest at the chart's
+#                 version check off, its providers from the read-only mirror,
+#                 no rule to the internet outside manifests/optional/, the image by digest at the chart's
 #                 version, a ClusterIP Service, and the provisioner's RBAC in
 #                 coder-workspaces only, without Deployments; the GitHub
 #                 values file carries every setting of the base one
@@ -60,6 +61,7 @@ check_kubeconform() {
   kubeconform -strict -summary -output text -kubernetes-version "$KUBE_VERSION" \
     -cache .cache/kubeconform -schema-location "$K8S_SCHEMAS" \
     out/manifests.yaml out/chart.yaml out/chart-github.yaml out/chart-defaults.yaml \
+    manifests/optional/coder-server-internet.yaml \
     "$SANDBOX/manifests/runtimeclass.yaml" "$SANDBOX/manifests/admission.yaml" "$SANDBOX/manifests/agent-dns.yaml"
 }
 
@@ -94,7 +96,7 @@ bad = []
 text, base = env("helm/values.yaml")
 want = {"CODER_TELEMETRY_ENABLE": "false", "CODER_UPDATE_CHECK": "false",
         "CODER_DERP_SERVER_STUN_ADDRESSES": "disable", "CODER_BLOCK_DIRECT": "true",
-        "CHECKPOINT_DISABLE": "1"}
+        "CHECKPOINT_DISABLE": "1", "TF_CLI_CONFIG_FILE": "/mirror/terraform.rc"}
 for k, v in want.items():
     if base.get(k) != v:
         bad.append("helm/values.yaml: %s is %s, the README says %s" % (k, base.get(k, "unset"), v))
@@ -112,6 +114,11 @@ for line in ("    workspacePerms: false", "    enableDeployments: false",
         bad.append("helm/values.yaml: the provisioner's RBAC lacks %r" % line.strip())
 if sa.count("- name:") != 1 or "extraRules" in sa:
     bad.append("helm/values.yaml: the provisioner's RBAC reaches past coder-workspaces")
+policies = open("manifests/network-policies.yaml").read()
+if "0.0.0.0/0" in policies or "::/0" in policies:
+    bad.append("manifests/network-policies.yaml opens a way to the internet; that rule lives in manifests/optional/ only")
+if "name: providers, mountPath: /mirror, readOnly: true" not in text:
+    bad.append("helm/values.yaml: the provider mirror is not mounted read-only at /mirror")
 _, gh = env("helm/values-github.yaml")
 for k, v in base.items():
     if gh.get(k) != v:

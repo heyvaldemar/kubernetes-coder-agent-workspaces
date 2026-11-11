@@ -22,6 +22,10 @@ A Coder workspace's agent connects out to the server for its API and to a relay 
 - Sessions that could have gone direct are relayed: more latency for a person on a laptop, nothing for an agent working inside the workspace.
 - The access URL is plain HTTP inside the cluster. The agent's token and the agent binary travel over it. A deployment with TLS on the access URL closes that, and needs a certificate the workspaces trust.
 
+## Revisited, 2026-11-11
+
+The Coder server no longer reaches the internet. Its 443 rule moved to `manifests/optional/coder-server-internet.yaml`, which `scripts/install-coder.sh` applies only for GitHub sign-in (`CODER_GITHUB=app`) or on request (`CODER_SERVER_INTERNET=open`), for a model provider out there. Template builds read Terraform's providers from a mirror (ADR 6), and Coder Agents talks to the model endpoint in the cluster (ADR 7), each through its own rule. The e2e checks that no policy of the server's names an address outside the cluster but the API server's.
+
 ## Alternatives
 
 - **STUN on, direct connections allowed.** Lower latency for people far from the server. It needs the workspace to take inbound UDP from anywhere and reach STUN servers on the internet, and the egress allowlist stops being one rule.

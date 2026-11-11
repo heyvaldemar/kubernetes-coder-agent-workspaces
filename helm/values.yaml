@@ -41,9 +41,14 @@ coder:
     # The provisioner's working files, on the emptyDir below: the root is
     # read-only.
     - {name: CODER_CACHE_DIRECTORY, value: /tmp/coder-cache}
+    # Terraform's providers from the mirror on the volume below, and from
+    # nowhere else (manifests/provider-mirror.yaml): a template build reaches
+    # nothing outside the cluster. Coder passes the server's environment to
+    # Terraform, all but the CODER_ variables.
+    - {name: TF_CLI_CONFIG_FILE, value: /mirror/terraform.rc}
 
   # Community edition: the server is its own provisioner (external
-  # provisioner daemons are a Premium feature), so its ServiceAccount is the
+  # provisioner daemons are "an Enterprise feature" in the chart's own values), so its ServiceAccount is the
   # identity every template's Terraform runs as. It gets pods and claims in
   # coder-workspaces and nothing anywhere else: not in its own namespace, not
   # Deployments, not Services, NetworkPolicies, Namespaces or RBAC. The e2e
@@ -70,9 +75,12 @@ coder:
   volumes:
     - {name: tmp, emptyDir: {}}
     - {name: home, emptyDir: {}}
+    - name: providers
+      persistentVolumeClaim: {claimName: terraform-providers, readOnly: true}
   volumeMounts:
     - {name: tmp, mountPath: /tmp}
     - {name: home, mountPath: /home/coder}
+    - {name: providers, mountPath: /mirror, readOnly: true}
 
   resources:
     requests: {cpu: 250m, memory: 512Mi}

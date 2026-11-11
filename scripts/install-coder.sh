@@ -17,6 +17,12 @@
 #      sha256 differs, with helm/values.yaml and any files in CODER_VALUES
 #      (space-separated) on top.
 #
+# The Terraform providers come from a mirror (scripts/provider-mirror.sh),
+# built on this machine if CODER_PROVIDER_MIRROR does not point at one, and
+# copied onto the volume the server mounts read-only. The server then has no
+# rule to the internet at all, unless CODER_GITHUB=app or
+# CODER_SERVER_INTERNET=open asks for manifests/optional/coder-server-internet.yaml.
+#
 # CODER_GITHUB=app adds GitHub external authentication (helm/values-github.yaml)
 # from the Secret coder/coder-github you created from your own OAuth app
 # (docs/first-workspace.md). CODER_GITHUB=placeholder creates that Secret with
@@ -33,17 +39,6 @@ kubectl apply -f "$SANDBOX/manifests/runtimeclass.yaml" -f "$SANDBOX/manifests/a
 echo "applied the sandbox's RuntimeClass, admission policy and resolver (v1.4.0, verbatim)"
 kubectl apply -k manifests/ >/dev/null
 echo "applied manifests/"
-# A measurement only (tests/egress/run.sh): the server started with no way to
-# the internet, so a default that dials out asks for the name and sends nothing.
-if [ "${CODER_SERVER_INTERNET:-}" = closed ]; then
-  idx="$(kubectl -n coder get networkpolicy coder-server -o json | python3 -c '
-import json, sys
-egress = json.load(sys.stdin)["spec"]["egress"]
-print([i for i, r in enumerate(egress) if any(t.get("ipBlock", {}).get("cidr") == "0.0.0.0/0" for t in r.get("to", []))][0])')"
-  kubectl -n coder patch networkpolicy coder-server --type json -p "[{\"op\": \"remove\", \"path\": \"/spec/egress/$idx\"}]" >/dev/null
-  echo "the Coder server's way to the internet is closed (CODER_SERVER_INTERNET=closed)"
-fi
-
 # `create`, not `apply`: apply would keep the whole object, password included,
 # in the last-applied-configuration annotation.
 if ! kubectl -n coder get secret coder-db >/dev/null 2>&1; then
@@ -101,6 +96,43 @@ print(json.dumps({"apiVersion": "v1", "kind": "List", "items": [
     rule("agent-dns-to-api-server", "agent-dns", {})]}))
 PY
 echo "the Coder server and the resolver may reach the API server at $svc_ip:$svc_port and $ep_ip:$ep_port"
+
+if [ "${CODER_SERVER_INTERNET:-}" = open ] || [ "${CODER_GITHUB:-}" = app ]; then
+  kubectl apply -f manifests/optional/coder-server-internet.yaml >/dev/null
+  echo "the Coder server may reach the internet on 443 (manifests/optional/coder-server-internet.yaml)"
+else
+  kubectl -n coder delete networkpolicy coder-server-internet --ignore-not-found >/dev/null
+  echo "the Coder server has no way to the internet"
+fi
+
+# The provider mirror, onto its volume through a loader pod that exists for
+# the copy only. The archive goes over stdin; nothing is fetched in the cluster.
+mirror="${CODER_PROVIDER_MIRROR:-.cache/provider-mirror}"
+[ -d "$mirror/registry.terraform.io" ] || ./scripts/provider-mirror.sh "$mirror" >/dev/null
+want="$(find "$mirror" -name '*.zip' | wc -l | tr -d ' ')"
+python3 - <<'PY' | kubectl apply -f - >/dev/null
+import json
+busybox = "docker.io/library/busybox:1.37@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e"
+print(json.dumps({"apiVersion": "v1", "kind": "Pod",
+  "metadata": {"name": "provider-mirror-loader", "namespace": "coder", "labels": {"app.kubernetes.io/name": "provider-mirror-loader"}},
+  "spec": {"automountServiceAccountToken": False, "restartPolicy": "Never",
+    "securityContext": {"runAsNonRoot": True, "runAsUser": 1000, "runAsGroup": 1000, "fsGroup": 1000,
+                        "seccompProfile": {"type": "RuntimeDefault"}},
+    "containers": [{"name": "loader", "image": busybox, "command": ["sleep", "600"],
+      "resources": {"requests": {"cpu": "10m", "memory": "16Mi"}, "limits": {"cpu": "200m", "memory": "64Mi"}},
+      "securityContext": {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True, "capabilities": {"drop": ["ALL"]}},
+      "volumeMounts": [{"name": "providers", "mountPath": "/mirror"}]}],
+    "volumes": [{"name": "providers", "persistentVolumeClaim": {"claimName": "terraform-providers"}}]}}))
+PY
+kubectl -n coder wait --for=condition=Ready pod/provider-mirror-loader --timeout=180s >/dev/null
+kubectl -n coder exec provider-mirror-loader -- sh -c 'rm -rf /mirror/providers /mirror/terraform.rc && mkdir -p /mirror/providers'
+COPYFILE_DISABLE=1 tar -C "$mirror" -cf - . | kubectl -n coder exec -i provider-mirror-loader -- tar -C /mirror/providers -xf -
+printf 'provider_installation {\n  filesystem_mirror {\n    path = "/mirror/providers"\n  }\n}\n' |
+  kubectl -n coder exec -i provider-mirror-loader -- sh -c 'cat > /mirror/terraform.rc'
+got="$(kubectl -n coder exec provider-mirror-loader -- find /mirror/providers -name '*.zip' | wc -l | tr -d ' ')"
+kubectl -n coder delete pod provider-mirror-loader --wait=true >/dev/null
+[ "$got" = "$want" ] || { echo "the provider mirror holds $got packages, $want were built" >&2; exit 1; }
+echo "the Terraform provider mirror is on its volume: $got packages, no direct installation"
 
 kubectl -n coder rollout status statefulset/postgres --timeout=180s >/dev/null
 echo "ready: coder/postgres"

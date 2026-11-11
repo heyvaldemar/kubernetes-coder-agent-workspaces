@@ -8,10 +8,10 @@
 # a default dials, which is what makes an empty list in the reference run
 # mean something. A measurement that never saw a name proves nothing.
 #
-# The defaults run closes the server's way to the internet before it starts
-# (the 443 rule in manifests/network-policies.yaml is removed), so a default
-# that dials out is seen asking for the name and sends nothing: no telemetry
-# leaves a CI run, no update check reaches GitHub.
+# The server has no way to the internet in either run (since v1.1.0 the 443
+# rule is optional, manifests/optional/), so a default that dials out is seen
+# asking for the name and sends nothing: no telemetry leaves a CI run, no
+# update check reaches GitHub.
 #
 # Run on a fresh cluster: the sandbox's kind cluster and gVisor, then
 # `scripts/dns-log.sh on`, then this. It installs Coder itself. Prints one
@@ -29,7 +29,7 @@ case "$profile" in
 esac
 
 if [ "$profile" = defaults ]; then
-  CODER_SERVER_INTERNET=closed CODER_VALUES="$values" ./scripts/install-coder.sh
+  CODER_VALUES="$values" ./scripts/install-coder.sh
 else
   ./scripts/install-coder.sh
 fi

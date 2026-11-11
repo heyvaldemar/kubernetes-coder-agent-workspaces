@@ -1,0 +1,31 @@
+# Not part of the default install. The Coder server on TCP 443 to addresses
+# outside the private, carrier-grade NAT and link-local ranges: the rest of
+# the cluster and the metadata service stay out of reach.
+#
+# scripts/install-coder.sh applies it with CODER_GITHUB=app, since GitHub
+# external authentication exchanges its codes with github.com from the
+# server, or with CODER_SERVER_INTERNET=open, for a model provider on the
+# internet or anything else that has to leave. Workspaces are unaffected:
+# their egress is their own policy's.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coder-server-internet
+  namespace: coder
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: coder
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+              - 169.254.0.0/16
+      ports:
+        - {protocol: TCP, port: 443}

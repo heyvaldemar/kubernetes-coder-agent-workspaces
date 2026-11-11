@@ -44,11 +44,10 @@ BUSYBOX=docker.io/library/busybox:1.37@sha256:bdf57e528e45e4433820e045b29b459782
 CURL=docker.io/curlimages/curl:8.22.0@sha256:58adaa4e8dca9c988bae2aba4ab3434a0bb2da16bbe3f92dec39ec7785166777
 PROVISIONER=system:serviceaccount:coder:coder
 WS=coder-workspaces
-# The names a template build is allowed to look up: Terraform's registry and
-# where it sends the provider downloads (registry.terraform.io answers with
-# releases.hashicorp.com for HashiCorp's providers and a GitHub release for
-# Coder's). Anything else the server asks for fails step 9.
-BUILD_NAMES="registry.terraform.io releases.hashicorp.com github.com release-assets.githubusercontent.com objects.githubusercontent.com"
+# The names a template build may look up: none. Terraform reads its providers
+# from the mirror on the server's volume (manifests/provider-mirror.yaml);
+# until v1.1.0 a build looked up registry.terraform.io, releases.hashicorp.com,
+# github.com and release-assets.githubusercontent.com.
 # What Coder's defaults dial, measured with tests/egress/values-defaults.yaml
 # (README, "What the control plane dials"), and where Coder Agents reports
 # usage on a licensed deployment (tallyman-prod.coder.com, in
@@ -364,16 +363,18 @@ else
 fi
 if [ "${total_alone:-0}" -gt 0 ] && [ -z "$alone" ]; then pass "from its start to the first template push, the Coder server looked up no outside name"
 elif [ -n "$alone" ]; then fail "on its own, the Coder server looked up: $alone"; fi
-stray=""
-for n in $builds; do [[ " $BUILD_NAMES " == *" $n "* ]] || stray+="$n "; done
 # Builds: the e2e workspace's first, the restart's stop and start, one per variant.
-if [ -n "$builds" ] && [ -z "$stray" ]; then pass "during two pushes and $(($(grep -c . <<<"$variants") + 3)) builds, it looked up Terraform's providers only: $builds"
-elif [ -z "$builds" ]; then fail "no outside name was logged during the builds, though Terraform downloads its providers then"
-else fail "during template builds the Coder server also looked up: $stray"; fi
+if [ "${total_builds:-0}" -gt 0 ] && [ -z "$builds" ]; then
+  pass "during two pushes, $(($(grep -c . <<<"$variants") + 3)) builds and the Coder Agents chat, it looked up no outside name: Terraform read its providers from the mirror"
+elif [ -n "$builds" ]; then fail "during template builds the Coder server looked up: $builds"; fi
+# And it could not have: no rule of the server's reaches past the cluster.
+open_rules="$(kubectl -n coder get networkpolicy -o json | jq -r '.items[] | select(.spec.podSelector.matchLabels["app.kubernetes.io/name"] == "coder") | .spec.egress[]?.to[]?.ipBlock.cidr // empty' | grep -v '/32$' || true)"
+if [ -z "$open_rules" ]; then pass "the Coder server's network policies name no address outside the cluster but the API server's"
+else fail "a network policy lets the Coder server reach: $open_rules"; fi
 for n in $DEFAULT_DIALS; do
   if grep -qx "$n" <(cut -f1 "$work/names-alone.tsv" "$work/names-builds.tsv"); then fail "a default this repository turns off was dialled: $n"; fi
 done
-measure "names looked up during builds, with counts: $(tr '\t\n' '=,' <"$work/names-builds.tsv" | sed 's/,$//')"
+measure "the server's lookups after the first push, cluster names included: $total_builds; outside names: ${builds:-none}"
 
 # --- results -----------------------------------------------------------------
 if [ -n "${E2E_RESULTS:-}" ]; then

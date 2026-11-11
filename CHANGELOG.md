@@ -6,7 +6,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
-- Coder Agents under the same boundary ([ADR 7](docs/decisions/0007-coder-agents-and-a-scripted-model.md)). `manifests/model/` is a model that has been talked into exfiltration, an OpenAI-compatible endpoint in its own namespace that only the Coder server reaches, answering from a fixed script; `tests/e2e/agents.py` registers it through Coder's API and starts a chat on the e2e workspace. E2e step 10: the agent's `execute` tool runs in the workspace on gVisor, and each of eight attempts the model asks for dies at the boundary; the model key stays with the Coder server; during the chat the server looks up no outside name, `tallyman-prod.coder.com` included. A static check refuses a model step that reads a credential without being marked secret (sixteen plants now).
+- Coder Agents under the same boundary ([ADR 7](docs/decisions/0007-coder-agents-and-a-scripted-model.md)). `manifests/model/` is a model that has been talked into exfiltration, an OpenAI-compatible endpoint in its own namespace that only the Coder server reaches, answering from a fixed script; `tests/e2e/agents.py` registers it through Coder's API and starts a chat on the e2e workspace. E2e step 10: the agent's `execute` tool runs in the workspace on gVisor, and each of eight attempts the model asks for dies at the boundary; the model key stays with the Coder server; during the chat the server looks up no outside name, `tallyman-prod.coder.com` included. A static check refuses a model step that reads a credential without being marked secret.
+- Template builds without the internet ([ADR 6](docs/decisions/0006-measured-control-plane-egress.md), revisited). `scripts/provider-mirror.sh` fills a Terraform filesystem mirror from the templates' lock file on the machine that installs; `scripts/install-coder.sh` copies it onto a volume the Coder server mounts read-only, with `TF_CLI_CONFIG_FILE` pointing Terraform at it and no direct installation.
+
+### Changed
+
+- The Coder server has no rule to the internet. Its 443 rule moved to `manifests/optional/coder-server-internet.yaml`, applied for GitHub sign-in (`CODER_GITHUB=app`) or with `CODER_SERVER_INTERNET=open` ([ADR 3](docs/decisions/0003-one-door-the-coder-server.md), revisited). E2e step 9 requires no outside name at all, and checks that no policy of the server's names an outside address. Static checks refuse a dropped mirror and a 443 rule back in the default policies (eighteen plants now).
 
 ### Found while building it
 
