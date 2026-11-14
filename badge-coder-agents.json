@@ -1,0 +1,1 @@
+{"schemaVersion": 1, "label": "Coder Agents", "message": "the model asked for the owner's Git SSH key through the agent's token, and a private key reached the model endpoint", "color": "blue"}

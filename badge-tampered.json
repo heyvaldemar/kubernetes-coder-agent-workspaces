@@ -1,0 +1,1 @@
+{"schemaVersion": 1, "label": "tampered", "message": "other-home: a template that names another workspace's claim is admitted, and its workspace reads the file the other wrote; the boundary is the namespace, not the workspace", "color": "blue"}

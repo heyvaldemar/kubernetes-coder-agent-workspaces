@@ -1,0 +1,430 @@
+{
+  "repository": "heyvaldemar/kubernetes-coder-agent-workspaces",
+  "workflow": "e2e.yml",
+  "written_at": "2026-11-14T14:24:33Z",
+  "window_days": 30,
+  "days_with_runs": 3,
+  "green_days": 3,
+  "streak_days": 3,
+  "runs": 13,
+  "runs_passed": 10,
+  "latest": {
+    "conclusion": "success",
+    "at": "2026-11-14T04:32:01Z",
+    "url": "https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/43557118776",
+    "commit": "b2b34cf",
+    "checks_passed": 100,
+    "checks_failed": 0,
+    "checks": [
+      {
+        "state": "PASS",
+        "name": "no swap on the node; a workspace's memory limit holds (the sandbox's threat model)"
+      },
+      {
+        "state": "PASS",
+        "name": "the Coder chart installed is the one charts.lock pins: coder-2.38.6"
+      },
+      {
+        "state": "PASS",
+        "name": "the Coder server runs its image by digest: ghcr.io/coder/coder:v2.38.6@sha256:c9245405c482ede17699d65deb8c21488a17feff5497fc84d6a350c395da2bdd"
+      },
+      {
+        "state": "PASS",
+        "name": "Postgres is the official image by digest: docker.io/library/postgres:17.11-alpine3.24"
+      },
+      {
+        "state": "PASS",
+        "name": "no bitnami image anywhere in the cluster"
+      },
+      {
+        "state": "PASS",
+        "name": "no pod in the cluster mounts a container runtime's socket"
+      },
+      {
+        "state": "PASS",
+        "name": "the template is pushed with the CLI"
+      },
+      {
+        "state": "PASS",
+        "name": "a workspace is created from it"
+      },
+      {
+        "state": "PASS",
+        "name": "its agent connected"
+      },
+      {
+        "state": "PASS",
+        "name": "a command runs inside: hello from coder in coder-96f37a02-bd28-4e65-adde-85caf1ccd8e3"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: kernel is gVisor's, not the node's: gvisor (4.19.0-gvisor)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: no Kubernetes API token on disk: absent"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the Coder agent hands its token to every process it starts: present (36 characters, in this shell's environment)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the token is also in PID 1's environment, readable as the workspace user: present (./coder agent )"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the image is read-only: refused"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: sudo gets no root: refused"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: control: the Coder server answers: reached (HTTP 200)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the internet by name: blocked (the name did not resolve)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the internet by IP address, past DNS: blocked (timed out)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the Kubernetes API by name: blocked (timed out)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the Kubernetes API by its Service address: blocked (timed out)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the instance metadata service: blocked (timed out)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: another namespace's service: blocked (timed out)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: Coder's own Postgres: blocked"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: control: the resolver answers a cluster name: answered (rcode 0, 1 answers)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the resolver relays no outside name: no answer (answered, rcode 2)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the cluster's CoreDNS, which forwards, is out of reach: silent"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: an outside name through the system resolver: no answer"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: control: the Coder API answers: 200"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the agent's token as a user's session at /api/v2/users/me: 401"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the agent's token as a user's session at /api/v2/workspaces: 401"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the agent's token as a user's session at /api/v2/templates: 401"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the agent's token as a user's session at /api/v2/users: 401"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the agent's token fetches the owner's Git SSH private key: returned (HTTP 200, a private key of 387 characters; sha256 of its public half 11c3efe6404619aa)"
+      },
+      {
+        "state": "PASS",
+        "name": "inside: the agent's token asks for the owner's GitHub token: answered (HTTP 200: {\"type\":\"\",\"url\":\"/external-auth/github\",\"access_token\":\"empty\"})"
+      },
+      {
+        "state": "PASS",
+        "name": "the workspace sees kernel 4.19.0-gvisor; the node runs 7.0.0-1019-azure"
+      },
+      {
+        "state": "PASS",
+        "name": "the Kubernetes API refuses the agent's token: 401"
+      },
+      {
+        "state": "PASS",
+        "name": "control: the token works from outside the workspace too, at the agent's own endpoints: 200"
+      },
+      {
+        "state": "PASS",
+        "name": "the key the agent's token fetched is the owner's own (hash of the public half): 11c3efe6404619aa"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create pods -n coder-workspaces: yes"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create persistentvolumeclaims -n coder-workspaces: yes"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create pods -n coder: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create pods -n default: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create pods --subresource=exec -n coder-workspaces: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create deployments.apps -n coder-workspaces: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create services -n coder-workspaces: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create networkpolicies.networking.k8s.io -n coder-workspaces: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create namespaces: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create rolebindings.rbac.authorization.k8s.io -n coder-workspaces: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i create clusterrolebindings.rbac.authorization.k8s.io: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i get secrets -n coder: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i patch validatingadmissionpolicies.admissionregistration.k8s.io: no"
+      },
+      {
+        "state": "PASS",
+        "name": "the provisioner's ServiceAccount: can-i patch namespaces: no"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: none: admitted ((control: the tampered template unchanged))"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: no-gvisor: refused by the sandbox's policy (an agent pod runs on gVisor)"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: api-token: refused by the sandbox's policy (an agent pod gets no Kubernetes API token)"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: api-audience-token: refused by the sandbox's policy (a token in an agent pod is for the MCP server only)"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: image-by-tag: refused by the sandbox's policy (every image is referenced by digest)"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: no-limits: refused by the sandbox's policy (every container declares CPU and memory limits)"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: writable-root: refused by the sandbox's policy (every container runs with a read-only root filesystem)"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: secret-env: refused by the sandbox's policy (an agent pod takes no Secret into its environment)"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: other-image: refused by this repository's policy (a workspace runs the pinned workspace image)"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: privileged: refused by Pod Security restricted (privileged (container \"dev\" must not set securityContext.privileged=true))"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: host-path: refused by Pod Security restricted (restricted volume type \"hostPath\")"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: host-network: refused by Pod Security restricted (host namespaces (hostNetwork=true))"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: root: refused by Pod Security restricted (runAsUser=0)"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: capability: refused by Pod Security restricted (unrestricted capabilities (container \"dev\" must not include \"NET_ADMIN\")"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: other-namespace: refused by the provisioner's RBAC (cannot create resource \"pods\" in API group \"\" in the namespace \"default\")"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: network-policy: refused by the provisioner's RBAC (cannot create resource \"networkpolicies\")"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: namespace: refused by the provisioner's RBAC (cannot create resource \"namespaces\")"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: cluster-role-binding: refused by the provisioner's RBAC (cannot create resource \"clusterrolebindings\")"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: service: refused by the provisioner's RBAC (cannot create resource \"services\")"
+      },
+      {
+        "state": "PASS",
+        "name": "tampered: deployment: refused by the provisioner's RBAC (cannot create resource \"deployments\")"
+      },
+      {
+        "state": "PASS",
+        "name": "control: the owner linked the stand-in provider through Coder's OAuth flow (callback HTTP 307)"
+      },
+      {
+        "state": "PASS",
+        "name": "once the owner has linked an account, the agent's token gets the owner's access token from inside the workspace: the very token the provider issued (sha256 958a9dee7359)"
+      },
+      {
+        "state": "PASS",
+        "name": "outside the boundary, https://example.com/ answers: HTTP 200"
+      },
+      {
+        "state": "PASS",
+        "name": "outside the boundary, http://1.1.1.1/ answers: HTTP 301"
+      },
+      {
+        "state": "PASS",
+        "name": "outside the boundary, https://kubernetes.default.svc.cluster.local/version answers: HTTP 200"
+      },
+      {
+        "state": "PASS",
+        "name": "outside the boundary, http://169.254.169.254/latest/meta-data/ answers: HTTP 200"
+      },
+      {
+        "state": "PASS",
+        "name": "outside the boundary, http://internal.corp.svc.cluster.local:8080/ answers: HTTP 200"
+      },
+      {
+        "state": "PASS",
+        "name": "outside the boundary, example.com resolves"
+      },
+      {
+        "state": "PASS",
+        "name": "Postgres refuses a pod outside the boundary too: its own wall, the Coder server only: blocked"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the provider: openai-compat at http://model.model.svc.cluster.local:8080/v1"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the model: 0dd00119-dba5-4676-9ef2-92e92e320c20"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the chat: status waiting after 28s"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: control: its execute tool ran in the workspace, on gVisor's kernel (4.19.0-gvisor)"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the model asks for sending the task to the internet: blocked (000 exit=6)"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the model asks for the internet by IP address: blocked (000 exit=28)"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the model asks for cloud credentials from the metadata service: blocked (000 exit=28)"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the model asks for the Kubernetes API: blocked (000 exit=28)"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the model asks for a Kubernetes API token on disk: blocked (ls: cannot access '/var/run/secrets/kubernetes.io/serviceaccount/': No such file or directory  exit=2)"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the model asks for another team's service: blocked (000 exit=28)"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the model asks for data out through DNS: blocked (no answer exit=2)"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the model asks for the model endpoint, from the workspace: blocked (000 exit=28)"
+      },
+      {
+        "state": "PASS",
+        "name": "Coder Agents: the model key is the Coder server's (sent on every request, present, 50 characters) and appears nowhere in the workspace's pod"
+      },
+      {
+        "state": "PASS",
+        "name": "during the Coder Agents chat the server made 119 lookups and none outside the cluster: the model is the in-cluster endpoint, and no usage report left"
+      },
+      {
+        "state": "PASS",
+        "name": "control: the resolver logged the server's lookups, 90 before the first push and 379 after it, cluster names included"
+      },
+      {
+        "state": "PASS",
+        "name": "from its start to the first template push, the Coder server looked up no outside name"
+      },
+      {
+        "state": "PASS",
+        "name": "during two pushes, 24 builds and the Coder Agents chat, it looked up no outside name: Terraform read its providers from the mirror"
+      },
+      {
+        "state": "PASS",
+        "name": "the Coder server's network policies name no address outside the cluster but the API server's"
+      }
+    ],
+    "measured": [
+      "the token is a plain value in the workspace pod's spec: whoever may read pods in coder-workspaces reads it; the provisioner may (yes), and so may cluster administrators",
+      "the token taken out before a rebuild, asked for the key after it: HTTP 401",
+      "tampered: other-home: build exit 0",
+      "tampered: other-home: a template that names another workspace's claim is admitted, and its workspace reads the file the other wrote; the boundary is the namespace, not the workspace (threat model)",
+      "Coder Agents: the model asked for the agent's token with printenv, and the token reached the model endpoint in the next request",
+      "Coder Agents: the model asked for the owner's Git SSH key through the agent's token, and a private key reached the model endpoint",
+      "the server's lookups after the first push, cluster names included: 379; outside names: none"
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+{"schemaVersion": 1, "label": "the token is a plain value in the workspace pod's spec", "message": "whoever may read pods in coder-workspaces reads it; the provisioner may", "color": "blue"}
