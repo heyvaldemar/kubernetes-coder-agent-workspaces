@@ -32,6 +32,7 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+CLUSTER="${CLUSTER:-coder-workspaces}"
 BUSYBOX=docker.io/library/busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
 CURL=docker.io/curlimages/curl:8.22.0@sha256:58adaa4e8dca9c988bae2aba4ab3434a0bb2da16bbe3f92dec39ec7785166777
 WS=coder-workspaces
@@ -124,10 +125,20 @@ PY
 if ! kubectl -n model wait --for=condition=Ready pod/real-model-loader --timeout=180s >/dev/null; then
   fail "the loader pod did not start"; stop
 fi
-kubectl -n model exec -i real-model-loader -- sh -c 'cat > /models/model.gguf' <"$file"
+# The file goes straight into the volume's directory on the kind node, the
+# loader pod's claim having bound it there: a 1 GB stream through
+# `kubectl exec -i` broke off and left an empty file (run 43738930066).
+pv="$(kubectl -n model get pvc real-model-weights -o jsonpath='{.spec.volumeName}')"
+dir="$(kubectl get pv "$pv" -o jsonpath='{.spec.hostPath.path}{.spec.local.path}')"
+node="$(kubectl get pv "$pv" -o jsonpath='{.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]}')"
+if [ -z "$dir" ] || ! kind get nodes --name "$CLUSTER" | grep -qx "$node"; then
+  fail "the model's volume is at '${dir:-nowhere}' on '${node:-no node}', not on a node of $CLUSTER"; stop
+fi
+docker cp "$file" "$node:$dir/model.gguf" >/dev/null
+docker exec "$node" chown 65532:65532 "$dir/model.gguf"
 on_volume="$(kubectl -n model exec real-model-loader -- sha256sum /models/model.gguf | cut -d' ' -f1)"
 kubectl -n model delete pod real-model-loader --wait=true >/dev/null
-if [ "$on_volume" = "$sum" ]; then pass "on the model's volume, the same sha256"; else fail "on the model's volume: sha256 ${on_volume:-unreadable}"; stop; fi
+if [ "$on_volume" = "$sum" ]; then pass "on the model's volume, read back by a pod: the same sha256"; else fail "on the model's volume: sha256 ${on_volume:-unreadable}"; stop; fi
 # The scripted model steps aside; the Service model, its policies and the
 # Coder server's way to it stay as they are.
 kubectl -n model scale deployment/model --replicas=0 >/dev/null

@@ -8,9 +8,10 @@
 # It carries the scripted model's label, so the namespace's policies are the
 # ones it lives under: no egress at all, not even DNS, and ingress from the
 # Coder server only (manifests/model/model.yaml). Its key is generated per run
-# (Secret real-model-key); the weights come in on a volume a loader pod filled,
-# and the init container below checks their sha256 against the pin before the
-# server may start, so a file that differs stops the pod.
+# (Secret real-model-key); run.sh copies the weights into the volume on the
+# node, a loader pod reads their sha256 back, and the init container below
+# checks it against the pin before the server may start, so a file that
+# differs stops the pod.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
