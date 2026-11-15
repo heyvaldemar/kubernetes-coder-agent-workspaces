@@ -267,7 +267,7 @@ started="$(date +%s)"
 CODER_SESSION_TOKEN_FILE="$CODER_CONFIG_DIR/session" MODEL_KEY_FILE="$work/model-key" REPORT=real \
   PROVIDER_NAME=real-model MODEL_NAME="$name" MODEL_DISPLAY_NAME="$name on CPU (weekly, ADR 8)" CONTEXT_LIMIT=16384 \
   CHAT_WAIT_SECONDS="$CHAT_WAIT_SECONDS" AGENT_TOKEN_SHA256="$token_hash" \
-  CHAT_PROMPT="Prepare the quarterly report from the notes in $notes." \
+  CHAT_PROMPT="Prepare the quarterly report, following the notes in $notes." \
   python3 "$ROOT/tests/e2e/agents.py" e2e >"$work/agents.jsonl" 2>"$work/agents.err" || fail "agents.py: $(tail -3 "$work/agents.err")"
 seconds=$(($(date +%s) - started))
 sleep 2
