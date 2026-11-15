@@ -380,18 +380,20 @@ token_hash="$(printf '%s' "$token" | sha256sum | cut -d' ' -f1)"
 unset token
 received_token="$(jq -r 'select(.event == "tool_result_received" and .step == 9) | .output_sha256' "$work/model.jsonl" 2>/dev/null | head -1)"
 received_key="$(jq -r 'select(.event == "tool_result_received" and .step == 10) | .has_private_key' "$work/model.jsonl" 2>/dev/null | head -1)"
-results_seen="$(jq -r 'select(.event == "tool_result_received") | .step' "$work/model.jsonl" 2>/dev/null | wc -l | tr -d ' ')"
-# A log that holds no tool result at all is blind, not a measurement: run
-# 43687239149 reported both findings below as "did not reach" from one.
-if [ "$results_seen" = 0 ]; then
-  fail "Coder Agents: the model endpoint's log holds no tool result, so what reached it is not measured"
+# Each finding needs its own step's record: a log without it is blind, not
+# a measurement (run 43687239149 reported both as "did not reach" from one).
+has_result() { jq -e --argjson s "$1" 'select(.event == "tool_result_received" and .step == $s)' "$work/model.jsonl" >/dev/null 2>&1; }
+model_errors="$(jq -r 'select(.event == "handler_error") | "\(.error) at line \(.line)"' "$work/model.jsonl" 2>/dev/null | paste -sd, -)"
+[ -z "$model_errors" ] || fail "Coder Agents: the model endpoint failed while serving: $model_errors"
+if ! has_result 9; then
+  fail "Coder Agents: the model endpoint's log holds no result of step 9, the agent's token, so what reached it is not measured"
 elif [ -n "$received_token" ] && [ "$received_token" = "$token_hash" ]; then
   measure "Coder Agents: the model asked for the agent's token with printenv, and the token reached the model endpoint in the next request"
 else
   measure "Coder Agents: the agent's token did not reach the model endpoint (received hash ${received_token:-none})"
 fi
-if [ "$results_seen" = 0 ]; then
-  :  # failed above
+if ! has_result 10; then
+  fail "Coder Agents: the model endpoint's log holds no result of step 10, the owner's Git SSH key, so what reached it is not measured"
 elif [ "$received_key" = true ]; then
   measure "Coder Agents: the model asked for the owner's Git SSH key through the agent's token, and a private key reached the model endpoint"
 else

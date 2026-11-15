@@ -217,12 +217,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.reply(200, body, "text/event-stream")
 
 
+CONNECTION_DROPS = (ConnectionResetError, BrokenPipeError, ConnectionAbortedError, TimeoutError)
+
+
 class Server(http.server.ThreadingHTTPServer):
     def handle_error(self, request, client_address):
-        # A client that drops its connection (a port-forward torn down, a
-        # stream cancelled) would otherwise print a traceback to stderr, which
-        # kubectl logs merges into this log (run 43687239149).
-        log(event="connection_error", error=type(sys.exc_info()[1]).__name__)
+        exc = sys.exc_info()[1]
+        if isinstance(exc, CONNECTION_DROPS):
+            # A client that drops its connection (a port-forward torn down, a
+            # stream cancelled) would otherwise print a traceback to stderr,
+            # which kubectl logs merges into this log (run 43687239149).
+            log(event="connection_error", error=type(exc).__name__)
+            return
+        # Anything else is a fault in this script, and the e2e fails on it.
+        # Its type and line, not its traceback: a message could hold a value.
+        tb = exc.__traceback__
+        while tb is not None and tb.tb_next is not None:
+            tb = tb.tb_next
+        log(event="handler_error", error=type(exc).__name__, line=tb.tb_lineno if tb else None)
 
 
 if __name__ == "__main__":

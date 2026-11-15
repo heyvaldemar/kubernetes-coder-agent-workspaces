@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
-- The e2e lost every fact the model endpoint logged after a connection to it was reset. Python's HTTP server printed a traceback to stderr, `kubectl logs` merged it into the log, and `jq` stopped at the first line that was not JSON, so step 10 failed its model-key check and reported the agent's token and the owner's key as not reaching the model (run 43687239149; the reset came when step 6b killed its port-forward to the model). `manifests/model/model.py` now logs a dropped connection as a fact, `tests/e2e/run.sh` skips a line that is not JSON and says how many it skipped, and step 10 fails instead of measuring when the log holds no tool result.
+- The e2e lost every fact the model endpoint logged after a connection to it was reset. Python's HTTP server printed a traceback to stderr, `kubectl logs` merged it into the log, and `jq` stopped at the first line that was not JSON, so step 10 failed its model-key check and reported the agent's token and the owner's key as not reaching the model (run 43687239149; the reset came when step 6b killed its port-forward to the model). `manifests/model/model.py` now logs a dropped connection as a fact and any other fault in itself as a `handler_error` fact (its type and line, no traceback), `tests/e2e/run.sh` skips a line that is not JSON and says how many it skipped, and step 10 fails on a `handler_error`, and instead of measuring when the log holds no record of the step a finding is about.
 - `manifests/model/model.py` says that its OAuth2 stand-in checks neither the client secret, nor `redirect_uri`, nor a PKCE verifier: a fixture for the measurement, not a provider.
 
 ## [1.2.0] - 2026-11-11
