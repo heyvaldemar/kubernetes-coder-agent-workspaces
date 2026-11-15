@@ -146,9 +146,19 @@ if [ "$on_volume" = "$sum" ]; then pass "on the model's volume, read back by a p
 kubectl -n model scale deployment/model --replicas=0 >/dev/null
 kubectl -n model wait --for=delete pod -l 'app.kubernetes.io/name=model,!app.kubernetes.io/component' --timeout=120s >/dev/null 2>&1
 kubectl -n model scale deployment/real-model --replicas=1 >/dev/null
-if ! kubectl -n model rollout status deployment/real-model --timeout=900s >/dev/null; then
-  fail "the model server did not become ready: $(kubectl -n model get pods -l app.kubernetes.io/component=real-model --no-headers 2>&1 | head -2 | tr -s ' ')"
-  kubectl -n model logs deployment/real-model -c check-weights --tail=5 2>&1 | sed 's/^/    /'
+# Ready, or the init container refused the weights: a refusal is final, so the
+# wait stops there instead of at the timeout.
+ready=false refused=0
+for _ in $(seq 1 180); do
+  pod="$(kubectl -n model get pods -l app.kubernetes.io/component=real-model -o json 2>/dev/null)"
+  ready="$(jq -r '.items[0].status.containerStatuses[0].ready // false' <<<"$pod" 2>/dev/null)"
+  refused="$(jq -r '.items[0].status.initContainerStatuses[0] | (.state.terminated.exitCode // .lastState.terminated.exitCode // 0)' <<<"$pod" 2>/dev/null)"
+  [ "$ready" = true ] || [ "${refused:-0}" != 0 ] && break
+  sleep 5
+done
+if [ "$ready" != true ]; then
+  fail "the model server did not become ready$([ "${refused:-0}" != 0 ] && echo ": its init container refused the weights (exit $refused)")"
+  kubectl -n model logs deployment/real-model -c check-weights --tail=3 2>&1 | sed 's/^/    /'
   stop
 fi
 checked="$(kubectl -n model logs deployment/real-model -c check-weights 2>/dev/null)"
