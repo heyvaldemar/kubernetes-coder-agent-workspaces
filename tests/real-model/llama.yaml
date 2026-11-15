@@ -67,7 +67,7 @@ spec:
           # left room for one turn. No fractional CPU limit: llama.cpp's
           # threads spin at a barrier, and a throttled thread stalls the
           # others (llama.cpp#29258).
-          args: ["-m", "/models/model.gguf", "--alias", "granite-4.0-1b", "--jinja", "-c", "16384", "-np", "1", "-t", "2",
+          args: ["-m", "/models/model.gguf", "--alias", "qwen3.5-2b", "--jinja", "-c", "16384", "-np", "1", "-t", "2",
                  "--metrics", "--cache-ram", "512", "--reasoning", "off", "--host", "0.0.0.0", "--port", "8080",
                  "--api-key-file", "/key/key"]
           ports:
