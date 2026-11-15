@@ -211,6 +211,13 @@ PY
   kubectl -n "$1" delete pod real-model-probe --wait=true >/dev/null 2>&1
 }
 code_of() { awk -v u="$1" '$1 == u {print $2}' <<<"$2"; }
+kubectl apply -f - >/dev/null <<'SABOTAGE'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: sabotage-open-egress, namespace: model}
+spec: {podSelector: {}, policyTypes: [Egress], egress: [{}]}
+SABOTAGE
+sleep 5
 inside="$(probe model '{"app.kubernetes.io/name": "model", "app.kubernetes.io/component": "egress-probe"}' settled)"
 first="$(probe model '{"app.kubernetes.io/name": "model", "app.kubernetes.io/component": "egress-probe"}' at-start)"
 kubectl create namespace real-model-control --dry-run=client -o yaml | kubectl apply -f - >/dev/null
