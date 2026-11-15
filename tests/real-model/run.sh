@@ -109,7 +109,7 @@ step "2. the model server, from that file only"
 # this user reads; the pod reads it from a Secret created from that file.
 (umask 077; python3 -c 'import secrets; print(secrets.token_urlsafe(32))' >"$work/model-key")
 kubectl -n model create secret generic real-model-key --from-file=key="$work/model-key" >/dev/null
-kubectl -n model create configmap real-model --from-literal=sha256="0000000000000000000000000000000000000000000000000000000000000000" >/dev/null
+kubectl -n model create configmap real-model --from-literal=sha256="$sum" >/dev/null
 kubectl apply -f "$HERE/llama.yaml" >/dev/null
 python3 - "$BUSYBOX" <<'PY' | kubectl apply -f - >/dev/null
 import json, sys
