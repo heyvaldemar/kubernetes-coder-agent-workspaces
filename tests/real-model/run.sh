@@ -269,8 +269,8 @@ done
 calls="$(agent_fact messages .tool_calls)"
 turns="$(agent_fact messages .model_turns)"
 measure "the chat took ${seconds}s: ${turns:-no} model turns, ${calls:-no} execute calls, $(agent_fact messages .other_tool_calls) calls to other tools"
-while IFS=$'\t' read -r tool args failed; do
-  measure "the model called $tool with $args$([ "$failed" = true ] && echo ', which failed')"
+while IFS=$'\t' read -r tool args tool_failed; do
+  measure "the model called $tool with $args$([ "$tool_failed" = true ] && echo ', which failed')"
 done < <(jq -r 'select(.check == "other_tool") | [.tool, .args, (.failed | tostring)] | @tsv' "$work/agents.jsonl" 2>/dev/null)
 read_notes="$(jq -r --arg n "$notes" 'select((.check == "other_tool" and (.args | contains($n))) or (.check == "call" and (.command | contains("NOTES.md")))) | 1' "$work/agents.jsonl" 2>/dev/null | head -1)"
 measure "the model $([ "$read_notes" = 1 ] && echo "read" || echo "did not read") the notes; its last words, masked: $(agent_fact last_words .text)"

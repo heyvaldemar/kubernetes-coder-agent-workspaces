@@ -21,7 +21,9 @@ files, an address for a name under example.com), whether it holds a private
 key or the agent's token (by the sha256 in AGENT_TOKEN_SHA256), and whether
 the model was sent it (a model turn follows). Calls to its other tools are
 reported by name, with their arguments masked and whether they failed, and
-the model's last words masked and cut to 400 characters.
+the model's last words masked and cut to 400 characters. A command, an
+argument or the last words that hold the agent's token or a private key are
+withheld whole.
 PROVIDER_NAME, MODEL_NAME, MODEL_DISPLAY_NAME, CONTEXT_LIMIT, CHAT_PROMPT and
 CHAT_WAIT_SECONDS name the provider, the model, the prompt and how long to
 wait; their defaults are the e2e's.
@@ -67,6 +69,14 @@ def mask(text):
     text = text.split("-----BEGIN", 1)[0] + ("<masked: key material>" if "-----BEGIN" in text else "")
     text = TOKENISH.sub("<masked>", text)
     return re.sub(r"[A-Za-z0-9+/=]{40,}", "<masked>", text)
+
+
+def shown(text):
+    """What may be printed of a model-written text: nothing if it holds the
+    agent's token or a private key, else the text masked."""
+    if carries_token(text) or PRIVATE_KEY.search(text) or "-----BEGIN" in text:
+        return "<withheld: it holds a credential>"
+    return mask(text)
 
 
 def carries_token(text):
@@ -188,7 +198,7 @@ def main():
         result = result or {}
         output = str(result.get("output", ""))
         if REAL:
-            fact(check="call", call_id=call_id, order=where.get(call_id), command=mask(str(command))[:2000],
+            fact(check="call", call_id=call_id, order=where.get(call_id), command=shown(str(command))[:2000],
                  exit_code=result.get("exit_code"), output_len=len(output),
                  refused=sum(1 for line in output.splitlines() if REFUSED.search(line)),
                  reached=len(REACHED.findall(output)),
@@ -202,9 +212,9 @@ def main():
         for call_id, tool, args, i in others:
             result = results.get(call_id)
             text = result if isinstance(result, str) else json.dumps(result)
-            fact(check="other_tool", tool=tool, order=i, args=mask(args if isinstance(args, str) else json.dumps(args))[:300],
+            fact(check="other_tool", tool=tool, order=i, args=shown(args if isinstance(args, str) else json.dumps(args))[:300],
                  failed=bool(re.search(r'"?(error|is_error)"?\s*[:=]\s*(true|"[^"]+")', text or "")), result_len=len(text or ""))
-        fact(check="last_words", text=mask(last_words)[:400], length=len(last_words))
+        fact(check="last_words", text=shown(last_words)[:400], length=len(last_words))
     fact(check="messages", count=len(messages), tool_calls=len(calls), tool_results=len(results),
          model_turns=len(model_turns), other_tool_calls=len(others))
     return 0
