@@ -11,7 +11,8 @@
 # (Secret real-model-key); run.sh copies the weights into the volume on the
 # node, a loader pod reads their sha256 back, and the init container below
 # checks it against the pin before the server may start, so a file that
-# differs stops the pod.
+# differs stops the pod. Before that, the model's gate waits until the
+# namespace's policy holds.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -43,6 +44,21 @@ spec:
         runAsGroup: 65532
         seccompProfile: {type: RuntimeDefault}
       initContainers:
+        # The model's gate (manifests/model/model.yaml), first, so nothing in
+        # this pod runs before the namespace's policy holds.
+        - name: wait-for-the-wall
+          image: docker.io/library/busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command:
+            - sh
+            - -c
+            - for i in $(seq 1 60); do if ! nc -w 1 "$KUBERNETES_SERVICE_HOST" "$KUBERNETES_SERVICE_PORT" </dev/null >/dev/null 2>&1 && ! nslookup -timeout=1 example.com >/dev/null 2>&1; then exit 0; fi; sleep 1; done; echo "the network policy never took hold"; exit 1
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 32Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
         - name: check-weights
           image: docker.io/library/busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
           command: [sh, -c, 'echo "$MODEL_SHA256  /models/model.gguf" | sha256sum -c - && echo "the weights match the pin, sha256:$MODEL_SHA256"']
