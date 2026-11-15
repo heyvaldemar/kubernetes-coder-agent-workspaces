@@ -45,7 +45,7 @@ Everything is pinned:
 - gVisor and the kind node image: the sandbox's, in `vendor/`.
 - Actions: by commit SHA, bumped weekly by Dependabot in one group and merged by `dependabot-automerge.yml` only after the e2e and Verify pass. The SLSA generator in `release-assets.yml` is the exception: it refuses a SHA, so it is referenced by tag.
 
-Dependabot reads the actions and the providers. Everything else is moved by hand, with the new hash checked against the publisher's. `scripts/check-freshness.py` reports each pin upstream has moved past, and `scripts/check-vendor.py --upstream` a newer sandbox release; neither changes anything.
+Dependabot reads the actions and the providers. Everything else is moved by hand, with the new hash checked against the publisher's. `scripts/check-freshness.py` reports each pin upstream has moved past, and `scripts/check-vendor.py --upstream` a newer sandbox release; neither changes anything. A release younger than three days is not pinned here: a pin moved by hand waits until its release is three days old, and so do Dependabot's version updates (`cooldown: default-days: 3` in `.github/dependabot.yml`, also Dependabot's default since 14 July 2026); its security updates open at once. Three days is long enough for a compromised release to be noticed and pulled. The freshness check, which reads what `freshness.json` lists, warns on a younger release and names the moment it becomes a failure.
 
 ## Numbers
 

@@ -1,0 +1,5 @@
+{
+  "checks": ["charts", "charts_lock", "images", "tools", "ci_images", "providers"],
+  "stable": {"coder": "coder/coder"},
+  "skip_suffixes": [".cast"]
+}

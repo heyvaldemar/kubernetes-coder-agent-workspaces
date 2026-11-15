@@ -8,12 +8,17 @@
 # scripts/check-vendor.py --upstream report when upstream has moved).
 #
 # Grouped: one pull request per week per ecosystem is a queue that gets read.
+# A release waits three days before it is offered (cooldown, Dependabot's
+# default since 14 July 2026, written out so the rule in AGENTS.md has its
+# setting next to it); security updates are not held.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
     groups:
       github-actions:
         patterns: ["*"]
@@ -25,6 +30,8 @@ updates:
       - /tests/e2e/tampered
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
     groups:
       terraform-providers:
         patterns: ["*"]
