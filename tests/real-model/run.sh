@@ -152,7 +152,7 @@ ready=false refused=0
 for _ in $(seq 1 180); do
   pod="$(kubectl -n model get pods -l app.kubernetes.io/component=real-model -o json 2>/dev/null)"
   ready="$(jq -r '.items[0].status.containerStatuses[0].ready // false' <<<"$pod" 2>/dev/null)"
-  refused="$(jq -r '.items[0].status.initContainerStatuses[0] | (.state.terminated.exitCode // .lastState.terminated.exitCode // 0)' <<<"$pod" 2>/dev/null)"
+  refused="$(jq -r '[.items[0].status.initContainerStatuses[]? | select(.name == "check-weights")][0] | (.state.terminated.exitCode // .lastState.terminated.exitCode // 0)' <<<"$pod" 2>/dev/null)"
   [ "$ready" = true ] || [ "${refused:-0}" != 0 ] && break
   sleep 5
 done
