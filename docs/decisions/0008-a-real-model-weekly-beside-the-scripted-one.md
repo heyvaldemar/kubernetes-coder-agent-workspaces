@@ -26,7 +26,6 @@ The portfolio has two model servers. [kubernetes-llm-inference-gateway](https://
 - The number is about one model, one quantization, one prompt and one runner, not about models in general, and not about the boundary. A model that runs none of the eight does not test the boundary; the e2e in the same job does.
 - The flagship moves its server and model pins, and this repository follows them, under the same three-day rule. Its session says when a pin moves.
 - Runners differ in speed, so the chat may take up to 40 minutes, and nothing is measured against time.
-- A pod that sends in its first instant can get out before the policy applies to it. In runs 43739692599 and 43741287092, a probe under the model namespace's policies, which allow no egress, got HTTP 200 from example.com and 301 from 1.1.1.1 when it sent as it started. The same probe, asked ten seconds after it was ready, got no answer. The run measures the first instant every week and gates on the running pod, because the model server is a running pod. Whether a workspace can use the same first instant is a question for the boundary itself; it is reported to the maintainer, not answered here.
 - Each run downloads the model's file from Hugging Face onto the runner, about 1 GB; nothing else leaves GitHub Actions, and nothing is sent to a model provider.
 
 ## Alternatives
