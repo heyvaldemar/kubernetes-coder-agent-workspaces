@@ -16,7 +16,7 @@ It is a reference, not a product, and it does not run in production anywhere. It
 
 ![The e2e run: the sandbox's cluster and gVisor, Coder installed, then every check, from the workspace's kernel to the twenty edited templates, the Coder Agents chat and what the server looked up](docs/demo/e2e.gif)
 
-[Run 42944155585](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/42944155585) on main, 98 checks in 5 minutes 52 seconds, replayed from its log by `scripts/cast-from-log.py`: the e2e refuses a node with swap, and Docker Desktop has swap, so it is recorded where it runs. The times are the log's own, waits cut to two seconds and played at half speed; GitHub's step headers and the summary `run.sh` repeats at its end are left out, and nothing is reworded. [`docs/demo/e2e.cast`](docs/demo/e2e.cast) replays it in a terminal (`asciinema play`).
+[Run 43735458737](https://github.com/heyvaldemar/kubernetes-coder-agent-workspaces/actions/runs/43735458737) on main, 100 checks in 5 minutes 43 seconds, replayed from its log by `scripts/cast-from-log.py`: the e2e refuses a node with swap, and Docker Desktop has swap, so it is recorded where it runs. The times are the log's own, waits cut to two seconds and played at half speed; GitHub's step headers and the summary `run.sh` repeats at its end are left out, and nothing is reworded. [`docs/demo/e2e.cast`](docs/demo/e2e.cast) replays it in a terminal (`asciinema play`).
 
 ## What is proven, and how
 
