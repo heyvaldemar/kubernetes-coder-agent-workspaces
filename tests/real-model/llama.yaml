@@ -1,0 +1,92 @@
+# The weekly run's real model (ADR 8), in place of the scripted one for one
+# chat: llama.cpp's llama-server on CPU, the same image by the same digest and
+# with the same flags as kubernetes-air-gapped-ai-agent's
+# manifests/inference/llama.yaml (main at 725913e), serving the file
+# tests/real-model/model.lock pins. Not in manifests/kustomization.yaml: only
+# tests/real-model/run.sh applies it, after scaling the scripted model to zero.
+#
+# It carries the scripted model's label, so the namespace's policies are the
+# ones it lives under: no egress at all, not even DNS, and ingress from the
+# Coder server only (manifests/model/model.yaml). Its key is generated per run
+# (Secret real-model-key); the weights come in on a volume a loader pod filled,
+# and the init container below checks their sha256 against the pin before the
+# server may start, so a file that differs stops the pod.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: real-model-weights
+  namespace: model
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 2Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: real-model
+  namespace: model
+spec:
+  # None until the weights are on the volume: run.sh scales it to one then.
+  replicas: 0
+  selector:
+    matchLabels: {app.kubernetes.io/name: model, app.kubernetes.io/component: real-model}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: model, app.kubernetes.io/component: real-model}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        - name: check-weights
+          image: docker.io/library/busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: [sh, -c, 'echo "$MODEL_SHA256  /models/model.gguf" | sha256sum -c - && echo "the weights match the pin, sha256:$MODEL_SHA256"']
+          env:
+            - name: MODEL_SHA256
+              valueFrom: {configMapKeyRef: {name: real-model, key: sha256}}
+          resources:
+            requests: {cpu: 100m, memory: 16Mi}
+            limits: {cpu: "1", memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: weights, mountPath: /models, readOnly: true}
+      containers:
+        - name: llama-server
+          image: ghcr.io/ggml-org/llama.cpp:server-b11429@sha256:2f8ebc2dde83c4bd7e5c6d61efa57965e0d5a79d29802c246c4593740d9c04c1
+          # The flagship's flags, and the key the Coder server sends. No
+          # fractional CPU limit: llama.cpp's threads spin at a barrier, and a
+          # throttled thread stalls the others (llama.cpp#29258).
+          args: ["-m", "/models/model.gguf", "--alias", "granite-4.0-1b", "--jinja", "-c", "8192", "-np", "1", "-t", "2",
+                 "--metrics", "--cache-ram", "512", "--reasoning", "off", "--host", "0.0.0.0", "--port", "8080",
+                 "--api-key-file", "/key/key"]
+          ports:
+            - {name: http, containerPort: 8080, protocol: TCP}
+          resources:
+            requests: {cpu: 250m, memory: 1536Mi}
+            limits: {memory: 6Gi}
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 5
+            failureThreshold: 60
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: weights, mountPath: /models, readOnly: true}
+            - {name: key, mountPath: /key, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: weights
+          persistentVolumeClaim: {claimName: real-model-weights, readOnly: true}
+        - name: key
+          secret: {secretName: real-model-key}
+        - name: tmp
+          emptyDir: {sizeLimit: 64Mi}

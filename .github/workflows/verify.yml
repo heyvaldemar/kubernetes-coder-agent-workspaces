@@ -40,7 +40,7 @@ jobs:
         run: docker run --rm -v "$PWD:/mnt" -w /mnt "$ACTIONLINT_IMAGE" -color
 
       - name: shellcheck
-        run: docker run --rm -v "$PWD:/mnt" -w /mnt "$SHELLCHECK_IMAGE" -x scripts/*.sh tests/e2e/*.sh tests/egress/*.sh
+        run: docker run --rm -v "$PWD:/mnt" -w /mnt "$SHELLCHECK_IMAGE" -x scripts/*.sh tests/e2e/*.sh tests/egress/*.sh tests/real-model/*.sh
 
       # The Terraform the Coder image bundles, so the format is the one a
       # template build reads.
