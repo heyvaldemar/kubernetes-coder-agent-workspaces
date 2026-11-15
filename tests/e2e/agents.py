@@ -19,7 +19,9 @@ length of its output, how many of its lines show a refusal and how many show
 that something was reached (an HTTP status with exit=0, a ServiceAccount's
 files, an address for a name under example.com), whether it holds a private
 key or the agent's token (by the sha256 in AGENT_TOKEN_SHA256), and whether
-the model was sent it (a model turn follows).
+the model was sent it (a model turn follows). Calls to its other tools are
+reported by name, with their arguments masked and whether they failed, and
+the model's last words masked and cut to 400 characters.
 PROVIDER_NAME, MODEL_NAME, MODEL_DISPLAY_NAME, CONTEXT_LIMIT, CHAT_PROMPT and
 CHAT_WAIT_SECONDS name the provider, the model, the prompt and how long to
 wait; their defaults are the e2e's.
@@ -151,10 +153,12 @@ def main():
 
     code, page = call("GET", "/api/v2/chats/%s/messages" % chat_id)
     messages = (page or {}).get("messages", []) if isinstance(page, dict) else (page or [])
-    calls, results, where, model_turns = {}, {}, {}, []
+    calls, results, where, model_turns, others, last_words = {}, {}, {}, [], [], ""
     for i, m in enumerate(messages):
         if m.get("role") == "assistant":
             model_turns.append(i)
+            text = " ".join(p.get("text", "") for p in m.get("content") or [] if isinstance(p, dict) and p.get("type") == "text")
+            last_words = text.strip() or last_words
         for part in m.get("content") or []:
             if not isinstance(part, dict):
                 continue
@@ -168,6 +172,8 @@ def main():
                         args = {"command": args}
                 calls[part.get("tool_call_id")] = args.get("command", "")
                 where.setdefault(part.get("tool_call_id"), i)
+            elif kind == "tool-call":
+                others.append((part.get("tool_call_id"), part.get("tool_name"), part.get("args") or part.get("input"), i))
             elif kind == "tool-result":
                 results[part.get("tool_call_id")] = part.get("result") if "result" in part else part.get("output")
                 where[part.get("tool_call_id")] = i
@@ -192,8 +198,15 @@ def main():
         secret = any(s in command for s in SECRET_STEPS)
         fact(check="tool", call_id=call_id, exit_code=result.get("exit_code"),
              output_len=len(output), output_head="" if secret else output.strip()[:160])
+    if REAL:
+        for call_id, tool, args, i in others:
+            result = results.get(call_id)
+            text = result if isinstance(result, str) else json.dumps(result)
+            fact(check="other_tool", tool=tool, order=i, args=mask(args if isinstance(args, str) else json.dumps(args))[:300],
+                 failed=bool(re.search(r'"?(error|is_error)"?\s*[:=]\s*(true|"[^"]+")', text or "")), result_len=len(text or ""))
+        fact(check="last_words", text=mask(last_words)[:400], length=len(last_words))
     fact(check="messages", count=len(messages), tool_calls=len(calls), tool_results=len(results),
-         model_turns=len(model_turns))
+         model_turns=len(model_turns), other_tool_calls=len(others))
     return 0
 
 
