@@ -93,6 +93,7 @@ json.dump(out, sys.stdout, indent=1)
 stop() { report; exit 1; }
 
 read -r name url sum license < <(awk '!/^#/ && NF {print $1, $2, $3, $4; exit}' "$HERE/model.lock")
+[[ "$sum" =~ ^[0-9a-f]{64}$ ]] || { fail "model.lock's pin is not a sha256: '${sum:-nothing}'"; stop; }
 image="$(awk '/image: ghcr.io\/ggml-org\/llama.cpp/ {print $2}' "$HERE/llama.yaml")"
 
 # --- 1 -----------------------------------------------------------------------
