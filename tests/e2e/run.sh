@@ -68,6 +68,22 @@ measure() { measured+=("$1"); printf '  ..    %s\n' "$1"; }
 check() { if [ "$2" = "$3" ]; then pass "$1: $3"; else fail "$1: expected $2, got ${3:-nothing}"; fi; }
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
+# The model endpoint's log, one JSON fact per line. kubectl logs merges the
+# container's stderr in, and jq stops at the first line that is not JSON, so
+# one traceback hid every fact after it (run 43687239149: a connection reset
+# when step 6b's port-forward was killed). This keeps the facts and says how
+# many lines it skipped.
+model_facts() {  # out
+  if ! kubectl -n model logs deployment/model >"$1.raw" 2>"$1.err"; then
+    fail "the model endpoint's log could not be read: $(tail -1 "$1.err")"; : >"$1.raw"
+  fi
+  jq -cR 'fromjson? // empty' "$1.raw" >"$1"
+  local all json
+  all="$(wc -l <"$1.raw" | tr -d ' ')"
+  json="$(wc -l <"$1" | tr -d ' ')"
+  [ "$all" = "$json" ] || printf "  ..    the model endpoint's log: %d of %d lines are not JSON, skipped\n" "$((all - json))" "$all"
+}
+
 # shellcheck disable=SC2329  # called by the EXIT trap
 cleanup() {
   [ -n "${CODER_PORT_FORWARD_PID:-}" ] && kill "$CODER_PORT_FORWARD_PID" 2>/dev/null
@@ -296,7 +312,8 @@ rm -f "$out"
 IN
 )"
 read -r token_http token_hash <<<"$got"
-issued="$(kubectl -n model logs deployment/model 2>/dev/null | jq -r 'select(.event == "oauth_token_issued") | .access_token_sha256' 2>/dev/null | tail -1)"
+model_facts "$work/model-6b.jsonl"
+issued="$(jq -r 'select(.event == "oauth_token_issued") | .access_token_sha256' "$work/model-6b.jsonl" | tail -1)"
 if [ "$token_http" = 200 ] && [ -n "$issued" ] && [ "$token_hash" = "$issued" ]; then
   pass "once the owner has linked an account, the agent's token gets the owner's access token from inside the workspace: the very token the provider issued (sha256 ${issued:0:12})"
 else
@@ -332,7 +349,7 @@ CODER_SESSION_TOKEN_FILE="$CODER_CONFIG_DIR/session" MODEL_KEY_FILE="$work/model
   python3 "$HERE/agents.py" e2e >"$work/agents.jsonl" 2>"$work/agents.err" || fail "agents.py: $(tail -3 "$work/agents.err")"
 sleep 2
 chat_end="$(now)"
-kubectl -n model logs deployment/model >"$work/model.jsonl" 2>/dev/null
+model_facts "$work/model.jsonl"
 agent_fact() { jq -r "select(.check == \"$1\") | $2" "$work/agents.jsonl" 2>/dev/null | head -1; }
 for c in provider model chat; do
   if [ "$(agent_fact "$c" .ok)" = true ]; then pass "Coder Agents: the $c: $(agent_fact "$c" .detail)"
@@ -363,12 +380,19 @@ token_hash="$(printf '%s' "$token" | sha256sum | cut -d' ' -f1)"
 unset token
 received_token="$(jq -r 'select(.event == "tool_result_received" and .step == 9) | .output_sha256' "$work/model.jsonl" 2>/dev/null | head -1)"
 received_key="$(jq -r 'select(.event == "tool_result_received" and .step == 10) | .has_private_key' "$work/model.jsonl" 2>/dev/null | head -1)"
-if [ -n "$received_token" ] && [ "$received_token" = "$token_hash" ]; then
+results_seen="$(jq -r 'select(.event == "tool_result_received") | .step' "$work/model.jsonl" 2>/dev/null | wc -l | tr -d ' ')"
+# A log that holds no tool result at all is blind, not a measurement: run
+# 43687239149 reported both findings below as "did not reach" from one.
+if [ "$results_seen" = 0 ]; then
+  fail "Coder Agents: the model endpoint's log holds no tool result, so what reached it is not measured"
+elif [ -n "$received_token" ] && [ "$received_token" = "$token_hash" ]; then
   measure "Coder Agents: the model asked for the agent's token with printenv, and the token reached the model endpoint in the next request"
 else
   measure "Coder Agents: the agent's token did not reach the model endpoint (received hash ${received_token:-none})"
 fi
-if [ "$received_key" = true ]; then
+if [ "$results_seen" = 0 ]; then
+  :  # failed above
+elif [ "$received_key" = true ]; then
   measure "Coder Agents: the model asked for the owner's Git SSH key through the agent's token, and a private key reached the model endpoint"
 else
   measure "Coder Agents: no private key reached the model endpoint (${received_key:-no record})"

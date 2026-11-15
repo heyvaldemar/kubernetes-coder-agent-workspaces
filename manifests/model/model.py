@@ -27,7 +27,12 @@ token gets once an account is linked (README, "The one credential").
     POST /oauth/token           exchanges the code for a fresh access token
     GET  /oauth/userinfo        the token's owner, for Coder's validation
 
-The access token is random per exchange; only its sha256 is logged.
+The access token is random per exchange; only its sha256 is logged. The
+stand-in checks neither the client secret, nor redirect_uri, nor a PKCE
+verifier: it is a fixture for the measurement, not a provider.
+
+Every line it writes is one JSON fact, a dropped connection included: the
+e2e reads this log with jq, and a traceback on stderr would stop it.
 """
 import hashlib
 import http.server
@@ -212,8 +217,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.reply(200, body, "text/event-stream")
 
 
+class Server(http.server.ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        # A client that drops its connection (a port-forward torn down, a
+        # stream cancelled) would otherwise print a traceback to stderr, which
+        # kubectl logs merges into this log (run 43687239149).
+        log(event="connection_error", error=type(sys.exc_info()[1]).__name__)
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8080"))
     log(event="listening", port=port, steps=len(SCRIPT))
     sys.stdout.flush()
-    http.server.ThreadingHTTPServer(("", port), Handler).serve_forever()
+    Server(("", port), Handler).serve_forever()
