@@ -6,7 +6,7 @@
 # coder, which you create from your own GitHub OAuth app before installing
 # (docs/first-workspace.md shows how, on stdin). Nothing here is a credential.
 # The variable names are Coder's (CODER_EXTERNAL_AUTH_0_*, codersdk at
-# v2.38.6); the template declares the provider when pushed with
+# v2.38.7); the template declares the provider when pushed with
 # --variable github_external_auth=true.
 #
 # The e2e installs the same file with a Secret that names no real app, so the

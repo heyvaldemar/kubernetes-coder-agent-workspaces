@@ -55,7 +55,7 @@ locals {
   workspace_tag  = "docker.io/codercom/example-minimal:ubuntu"
   workspace      = "docker.io/codercom/example-minimal@sha256:137678561bd25b329ad78fe18ed304da48ee5f550aaf6eb8bc727a83dfca6531"
   other_image    = "docker.io/library/alpine@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a"
-  gate_image     = "docker.io/library/busybox:1.37@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e"
+  gate_image     = "docker.io/library/busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec"
   image          = local.v == "image-by-tag" ? local.workspace_tag : local.v == "other-image" ? local.other_image : local.workspace
   makes_a_pod    = !contains(["network-policy", "namespace", "cluster-role-binding", "service", "deployment"], local.v)
   limits         = { cpu = "1", memory = "1Gi" }

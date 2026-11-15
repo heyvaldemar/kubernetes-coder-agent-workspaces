@@ -5,7 +5,7 @@
 
 ## Context
 
-A Coder workspace cannot work without its agent's token: it is how the agent proves to the server which workspace it is. Coder's Kubernetes templates hand it to the pod as an environment value, `CODER_AGENT_TOKEN`. The agent then sets it in the environment of every process it starts ("Specific Coder subcommands require the agent token exposed!", `agent/agent.go` at v2.38.6), so an AI agent's shell in the workspace holds it. It is the one credential the boundary cannot take away, so what it can do has to be known, not assumed.
+A Coder workspace cannot work without its agent's token: it is how the agent proves to the server which workspace it is. Coder's Kubernetes templates hand it to the pod as an environment value, `CODER_AGENT_TOKEN`. The agent then sets it in the environment of every process it starts ("Specific Coder subcommands require the agent token exposed!", `agent/agent.go` at v2.38.7), so an AI agent's shell in the workspace holds it. It is the one credential the boundary cannot take away, so what it can do has to be known, not assumed.
 
 ## Decision
 

@@ -118,7 +118,7 @@ mirror="${CODER_PROVIDER_MIRROR:-.cache/provider-mirror}"
 want="$(find "$mirror" -name '*.zip' | wc -l | tr -d ' ')"
 python3 - <<'PY' | kubectl apply -f - >/dev/null
 import json
-busybox = "docker.io/library/busybox:1.37@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e"
+busybox = "docker.io/library/busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec"
 print(json.dumps({"apiVersion": "v1", "kind": "Pod",
   "metadata": {"name": "provider-mirror-loader", "namespace": "coder", "labels": {"app.kubernetes.io/name": "provider-mirror-loader"}},
   "spec": {"automountServiceAccountToken": False, "restartPolicy": "Never",
