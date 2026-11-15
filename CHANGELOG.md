@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
-- `scripts/check-freshness.py` is the fleet's one copy of the freshness check, fleet-ops `templates/check-freshness.py`, and what this repository pins is listed in `freshness.json`. A release younger than three days is now a warning that names the moment it becomes a failure: the release-age rule keeps such a version off main anyway, and every upstream release used to turn the check red for three days nobody was allowed to act on. A release whose date cannot be read still fails, and so does a tag that moved to a new digest.
+- `scripts/check-freshness.py` is the fleet's one copy of the freshness check, fleet-ops `templates/check-freshness.py`, and what this repository pins is listed in `freshness.json`. `.cast` recordings are left out, and the Coder server's pin is read from `helm/values.yaml`, which no copy read before. A release younger than three days is now a warning that names the moment it becomes a failure: such a release is not pinned here, a rule `AGENTS.md` now states and `.github/dependabot.yml` sets for Dependabot's version updates (`cooldown: default-days: 3`). A release whose date cannot be read still fails, and so does a tag that moved to a new digest.
 
 ## [1.2.0] - 2026-11-11
 
