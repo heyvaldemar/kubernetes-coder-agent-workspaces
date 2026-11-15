@@ -1,12 +1,12 @@
-# Values for Coder's Helm chart (charts.lock pins version 2.38.6 and its
+# Values for Coder's Helm chart (charts.lock pins version 2.38.7 and its
 # archive's sha256). Every setting below differs from the chart's default for
 # a reason written next to it. Flag names are from codersdk/deployment.go in
-# coder/coder at v2.38.6, not from memory.
+# coder/coder at v2.38.7, not from memory.
 coder:
   image:
     repo: ghcr.io/coder/coder
     # The chart writes repo:tag, so the digest rides on the tag.
-    tag: "v2.38.6@sha256:c9245405c482ede17699d65deb8c21488a17feff5497fc84d6a350c395da2bdd"
+    tag: "v2.38.7@sha256:58a163a10ce05c0c254f2cb6fb2fe8f94d6021a8ff5a611e288ff5078141fb80"
     pullPolicy: IfNotPresent
 
   env:

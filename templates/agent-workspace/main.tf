@@ -62,7 +62,7 @@ locals {
   # coder with uid 1000.
   workspace_image = "docker.io/codercom/example-minimal@sha256:137678561bd25b329ad78fe18ed304da48ee5f550aaf6eb8bc727a83dfca6531"
   # The gate's image: the sandbox's busybox, the same digest.
-  gate_image = "docker.io/library/busybox:1.37@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e"
+  gate_image = "docker.io/library/busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec"
   labels = {
     "app.kubernetes.io/name"     = "coder-workspace"
     "app.kubernetes.io/instance" = "coder-workspace-${data.coder_workspace.me.id}"
