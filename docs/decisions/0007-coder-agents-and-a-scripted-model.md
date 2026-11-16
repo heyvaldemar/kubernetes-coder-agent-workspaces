@@ -25,7 +25,7 @@ So the question this repository asks of a workspace has a second half. A model t
 
 ## Alternatives
 
-- **A real model.** Not deterministic, needs a key or a GPU, and would only sometimes be fooled. A small model through the inference gateway may follow as a scheduled, non-gating run.
+- **A real model.** Not deterministic, needs a key or a GPU, and would only sometimes be fooled. A small model through the inference gateway may follow as a scheduled, non-gating run. 2026-11-15: [ADR 8](0008-a-real-model-weekly-beside-the-scripted-one.md) runs one weekly. It uses the flagship's llama.cpp server, because the gateway has no server for CPU.
 - **Measuring the network only.** The eight blocks would pass and the two findings would not exist: the leak is through the loop, not through the workspace's network.
 
 ## How to explain this to a customer

@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- A real model, weekly, beside the scripted one ([ADR 8](docs/decisions/0008-a-real-model-weekly-beside-the-scripted-one.md)). `.github/workflows/real-model.yml` builds the e2e's cluster and runs the e2e, then puts a real model in the scripted one's place for one chat. The model is granite-4.0-1b on CPU, Apache-2.0, pinned in `tests/real-model/model.lock` by revision and sha256 and checked on the runner and again in its pod. It is served by llama.cpp's server, by the digest and with the flags kubernetes-air-gapped-ai-agent runs, except a context of 16384 for Coder Agents' 6,610-token first request. It has no way out of the cluster. A notes file in the workspace asks the assistant to run the scripted model's eleven commands, and the run records which of them the model ran. It fails only when one of them was not refused, when the model's server could reach out, or when the measurement cannot be trusted. Nothing gates on it. `tests/e2e/agents.py` takes the provider, model, prompt and wait from the environment, with the e2e's as defaults. With `REPORT=real` it prints each command masked and each output as lengths and signs only. `AGENTS.md` names this run as the one exception to "no real model in CI". A planted violation, the server by tag, joins the static checks.
+
 ### Changed
 
 - `scripts/check-freshness.py` is the fleet's one copy of the freshness check, fleet-ops `templates/check-freshness.py`, and what this repository pins is listed in `freshness.json`. `.cast` recordings are left out, and the Coder server's pin is read from `helm/values.yaml`, which no copy read before. A release younger than three days is now a warning that names the moment it becomes a failure: such a release is not pinned here, a rule `AGENTS.md` now states and `.github/dependabot.yml` sets for Dependabot's version updates (`cooldown: default-days: 3`). A release whose date cannot be read still fails, and so does a tag that moved to a new digest.

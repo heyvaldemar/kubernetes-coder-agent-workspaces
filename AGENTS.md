@@ -31,7 +31,7 @@ gh workflow run e2e.yml --ref <branch>
 gh workflow run verify.yml --ref <branch>
 ```
 
-`scripts/status.py` reads e2e runs on main only, so branch runs never touch the badges. A dispatched Verify also runs the freshness job, which fails when upstream has moved past a pin; that failure is about upstream, not the branch.
+`scripts/status.py` reads e2e runs on main only, so branch runs never touch the badges. A pull request that changes `tests/real-model/`, `tests/e2e/agents.py` or `.github/workflows/real-model.yml` also runs the weekly real-model workflow (ADR 8); it gates nothing, and its failure is read like any other. A dispatched Verify also runs the freshness job, which fails when upstream has moved past a pin; that failure is about upstream, not the branch.
 
 ## Pins
 
@@ -43,13 +43,14 @@ Everything is pinned:
 - Container images: by digest where they are used, in `manifests/`, `helm/values.yaml` (the digest rides on `coder.image.tag`), both templates and `tests/e2e/run.sh`. The workspace image appears in both templates and the gate's busybox in both templates, `manifests/corp.yaml` and `tests/e2e/run.sh`; a bump moves every copy in one commit, and `scripts/validate.sh template` refuses a fixture that differs from the template.
 - Terraform providers: by version in both templates and by hash in their identical `.terraform.lock.hcl` files, regenerated with `terraform providers lock -platform=linux_amd64 -platform=linux_arm64` in the pinned terraform image.
 - gVisor and the kind node image: the sandbox's, in `vendor/`.
+- The weekly real model (ADR 8): llama.cpp's server by digest in `tests/real-model/llama.yaml`, and the model's file by revision and sha256 in `tests/real-model/model.lock`, both the flagship's (kubernetes-air-gapped-ai-agent). They move when the flagship's move, after the same three days.
 - Actions: by commit SHA, bumped weekly by Dependabot in one group and merged by `dependabot-automerge.yml` only after the e2e and Verify pass. The SLSA generator in `release-assets.yml` is the exception: it refuses a SHA, so it is referenced by tag.
 
 Dependabot reads the actions and the providers. Everything else is moved by hand, with the new hash checked against the publisher's. `scripts/check-freshness.py` reports each pin upstream has moved past, and `scripts/check-vendor.py --upstream` a newer sandbox release; neither changes anything. A release younger than three days is not pinned here: a pin moved by hand waits until its release is three days old, and so do Dependabot's version updates (`cooldown: default-days: 3` in `.github/dependabot.yml`, also Dependabot's default since 14 July 2026); its security updates open at once. Three days is long enough for a compromised release to be noticed and pulled. The freshness check, which reads what `freshness.json` lists, warns on a younger release and names the moment it becomes a failure.
 
 ## Numbers
 
-The second row of README badges is written by `.github/workflows/status.yml` (`scripts/status.py`) to the `status` branch, from the e2e runs on main and their `e2e-results` artifacts. It is never edited by hand. The counts the README states (nineteen refused variants and one control, fifteen planted violations) are the counts in `tests/e2e/variants.tsv` and `tests/static/plants.tsv`, and change with them in the same commit. When a check fails on one run and passes on the next, find what changed (the runner, its swap, an image, the Coder release) before calling it noise: the `runAsNonRoot` finding and the telemetry trap both came from checks that failed during the build. A threshold or an allowed name comes from a stated cause, and is never widened to get a green run.
+The second row of README badges is written by `.github/workflows/status.yml` (`scripts/status.py`) to the `status` branch, from the e2e runs on main and their `e2e-results` artifacts. It is never edited by hand. The counts the README states (nineteen refused variants and one control, nineteen planted violations) are the counts in `tests/e2e/variants.tsv` and `tests/static/plants.tsv`, and change with them in the same commit. When a check fails on one run and passes on the next, find what changed (the runner, its swap, an image, the Coder release) before calling it noise: the `runAsNonRoot` finding and the telemetry trap both came from checks that failed during the build. A threshold or an allowed name comes from a stated cause, and is never widened to get a green run.
 
 ## Releases
 
@@ -70,4 +71,5 @@ Plain and specific. No em dashes, no marketing words, no claim the evidence does
 - Send anything to Coder from CI: the defaults measurement runs with the server's internet closed.
 - Open an issue, a pull request or a comment on Coder's projects, gVisor or any project not the maintainer's. A bug found upstream is written up for the maintainer.
 - Touch anything outside this repository's own CI to test a change: no cloud resources, no outside services.
-- Put a real model, or a real model provider's key, into CI. The model in `manifests/model/` is a script that is fooled the same way every run (ADR 7), and its key is generated per run. Its log holds facts about what it received, never a value: a step of its script that reads a credential is marked secret, and `scripts/validate.sh model` refuses one that is not.
+- Put a real model provider's key into CI, or a real model anywhere in CI but the one exception below. The e2e's model, in `manifests/model/`, is a script that is fooled the same way every run (ADR 7), and its key is generated per run. Its log holds facts about what it received, never a value: a step of its script that reads a credential is marked secret, and `scripts/validate.sh model` refuses one that is not.
+  - The exception is the weekly run of ADR 8, `.github/workflows/real-model.yml`, and nothing else. It serves a real model on CPU: Apache-2.0, pinned in `tests/real-model/model.lock` by revision and sha256, checked before it starts, in the cluster with no way out. It runs with a key generated per run, after the e2e has passed in the same job. It never prints a tool's output, and nothing gates on it. A real model in the e2e, in Verify or in any other workflow is not covered by it.

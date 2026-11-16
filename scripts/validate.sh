@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # validate.sh [check...] - the static checks, without a cluster:
 #
-#   kubeconform   this repository's manifests, the sandbox's vendored ones and
-#                 the Coder chart rendered with each values file are valid
+#   kubeconform   this repository's manifests, the sandbox's vendored ones,
+#                 the weekly real model's server (tests/real-model/llama.yaml)
+#                 and the Coder chart rendered with each values file are valid
 #                 Kubernetes 1.37 objects
 #   images        every image is referenced by digest: in the manifests, the
-#                 chart values, the templates, the e2e and the workflows
+#                 chart values, the templates, the e2e, the real-model run and
+#                 the workflows
 #   vendor        the sandbox's files under vendor/ are the bytes VENDOR.txt
 #                 records, and nothing else is there (scripts/check-vendor.py)
 #   coder         the chart values keep what the README claims: telemetry, the
@@ -61,7 +63,7 @@ check_kubeconform() {
   kubeconform -strict -summary -output text -kubernetes-version "$KUBE_VERSION" \
     -cache .cache/kubeconform -schema-location "$K8S_SCHEMAS" \
     out/manifests.yaml out/chart.yaml out/chart-github.yaml out/chart-defaults.yaml \
-    manifests/optional/coder-server-internet.yaml \
+    manifests/optional/coder-server-internet.yaml tests/real-model/llama.yaml \
     "$SANDBOX/manifests/runtimeclass.yaml" "$SANDBOX/manifests/admission.yaml" "$SANDBOX/manifests/agent-dns.yaml"
 }
 
@@ -71,7 +73,7 @@ check_images() {
   # e2e. vendor/ is the sandbox's, checked there.
   local bad
   bad="$(grep -rnE '(image:|"image":|^[A-Z_]+=|image +=|_image += |workspace +=|other_image += )[[:space:]]*"?[a-z0-9.-]+\.[a-z]+/[^@[:space:]"]+:[^@[:space:]"]+("|$|[[:space:]])' \
-    manifests templates tests/e2e/run.sh ci-images.pins .github/workflows 2>/dev/null | grep -v '@sha256:' || true)"
+    manifests templates tests/e2e/run.sh tests/real-model ci-images.pins .github/workflows 2>/dev/null | grep -v '@sha256:' || true)"
   # The chart splits the image into repo and tag; the digest rides on the tag.
   grep -qE '^    tag: "v[0-9.]+@sha256:[0-9a-f]{64}"$' helm/values.yaml || bad+=$'\n'"helm/values.yaml: coder.image.tag carries no digest"
   bad="$(sed '/^$/d' <<<"$bad")"

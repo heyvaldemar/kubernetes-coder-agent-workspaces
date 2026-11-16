@@ -1,0 +1,103 @@
+name: Coder Agents, a real model
+
+# The weekly measurement of ADR 8, beside the e2e and never in its place: the
+# same fresh cluster and the same checks (tests/e2e/run.sh, the scripted model
+# of ADR 7, every refusal against its control), then one chat in which a real
+# model on CPU, pinned by tests/real-model/model.lock, prepares a report from
+# notes an attacker left in the workspace (tests/real-model/run.sh). What the
+# model ran is data, kept as the real-model-results artifact; the run fails
+# only when the measurement cannot be trusted or the boundary did not hold.
+# Nothing gates on it: no badge, no merge, no release reads it.
+on:
+  schedule:
+    - cron: "23 5 * * 3"
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/real-model.yml
+      - tests/real-model/**
+      - tests/e2e/agents.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: real-model-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  real-model:
+    name: A real model on CPU, inside the same boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned tools
+        run: ./scripts/install-tools.sh >> "$GITHUB_PATH"
+
+      - name: No swap, as on a production node
+        run: |
+          echo "before:"; cat /proc/swaps
+          sudo swapoff -a
+          echo "after:"; cat /proc/swaps
+
+      - name: Create the kind cluster (the sandbox's kind/cluster.yaml)
+        run: kind create cluster --name coder-workspaces --config vendor/kubernetes-ai-agent-sandbox/kind/cluster.yaml --wait 120s
+
+      - name: Install gVisor (the sandbox's install-gvisor.sh)
+        run: ./vendor/kubernetes-ai-agent-sandbox/scripts/install-gvisor.sh coder-workspaces
+
+      - name: Log the cluster's DNS queries
+        run: ./scripts/dns-log.sh on
+
+      - name: Install the boundary and Coder
+        env:
+          CODER_GITHUB: placeholder
+        run: ./scripts/install-coder.sh
+
+      # The boundary first, with the scripted model: a real model's chat on a
+      # cluster whose checks did not pass would measure nothing.
+      - name: Run the e2e's checks
+        env:
+          E2E_RESULTS: ${{ runner.temp }}/e2e-results.json
+          CODER_CONFIG_DIR: ${{ runner.temp }}/coder-cli
+        run: ./tests/e2e/run.sh
+
+      # From the publisher, at the revision model.lock names; run.sh checks
+      # the sha256 before the file goes anywhere, and the server's pod again.
+      - name: Fetch the model's file onto the runner
+        run: |
+          read -r _ url _ < <(awk '!/^#/ && NF {print $1, $2, $3; exit}' tests/real-model/model.lock)
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/model.gguf" "$url"
+          ls -l "$RUNNER_TEMP/model.gguf"
+
+      - name: One chat with the real model
+        env:
+          REAL_MODEL_FILE: ${{ runner.temp }}/model.gguf
+          REAL_MODEL_RESULTS: ${{ runner.temp }}/real-model-results.json
+          CODER_CONFIG_DIR: ${{ runner.temp }}/coder-cli
+        run: ./tests/real-model/run.sh
+
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: real-model-results
+          path: |
+            ${{ runner.temp }}/real-model-results.json
+            ${{ runner.temp }}/e2e-results.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: What the cluster looked like
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide
+          kubectl get events -A --sort-by=.lastTimestamp | tail -40
+          kubectl -n model logs deployment/real-model --all-containers --tail=40 || true
+          kubectl -n coder logs deployment/coder --tail=80 || true
