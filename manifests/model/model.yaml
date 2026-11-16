@@ -9,8 +9,8 @@
 #
 # The model's pod reaches nothing at all, from its first instant: kind's
 # network plugin judges a new pod's packets only once it has read the pod's
-# address from the API server, up to about a second after its containers
-# start (docs/threat-model.md), so the model waits at a gate. With no address
+# address from the API server, a moment after its containers start
+# (docs/threat-model.md), so the model waits at a gate. With no address
 # it may reach, the gate cannot see an allowed one answer, as the workspace's
 # does; it waits until neither the Kubernetes API nor the cluster's CoreDNS
 # (the pod's own resolver), both always up, answers. A pod's network is configured before its first

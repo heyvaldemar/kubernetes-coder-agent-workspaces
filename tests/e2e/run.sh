@@ -209,8 +209,8 @@ else fail "the workspace sees kernel '${pod_kernel:-none}', the node '$node_kern
 # --- 4b ----------------------------------------------------------------------
 step "4b. the first instant: a workspace's pod and the model's"
 # kind's network plugin judges a new pod's packets only once it has read the
-# pod's address from the API server, up to about a second after its
-# containers start (docs/threat-model.md). The workspace and the model wait
+# pod's address from the API server, a moment after its containers start
+# (docs/threat-model.md). The workspace and the model wait
 # at a gate for that. Each check starts a pod made from the live one, gate
 # included, whose container asks from its very first instant, for three
 # seconds, one loop per question, with busybox, which starts in
