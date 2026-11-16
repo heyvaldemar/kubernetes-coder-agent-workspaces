@@ -12,6 +12,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - The README's replay is e2e run 43735458737 on main (782c681, the pins above): 100 checks in 5 minutes 43 seconds, step 6b's linked account included. It was run 42944155585, the 98 checks of v1.1.0. `docs/demo/e2e.cast` comes from the run's log through `scripts/cast-from-log.py`, the GIF from agg at half speed.
 
+- helm v4.3.2 (2026-11-13T04:53Z), moved once its three days were up: both archives hash as get.helm.sh's `.sha256sum` files say, and their `.asc` signatures verify with a key from helm's `KEYS` at v4.3.2. PostgreSQL 17.12, `postgres:17.12-alpine3.24` (in docker-library's official images since 2026-11-12T20:48Z, `PG_VERSION=17.12` in the image), by the digest registry-1.docker.io, Docker Hub and docker-library/repo-info agree on. The 17.11 tags are no longer built, so the digest moved above was their last.
+
 ### Fixed
 
 - The e2e lost every fact the model endpoint logged after a connection to it was reset. Python's HTTP server printed a traceback to stderr, `kubectl logs` merged it into the log, and `jq` stopped at the first line that was not JSON, so step 10 failed its model-key check and reported the agent's token and the owner's key as not reaching the model (run 43687239149; the reset came when step 6b killed its port-forward to the model). `manifests/model/model.py` now logs a dropped connection as a fact and any other fault in itself as a `handler_error` fact (its type and line, no traceback), `tests/e2e/run.sh` skips a line that is not JSON and says how many it skipped, and step 10 fails on a `handler_error`, and instead of measuring when the log holds no record of the step a finding is about.
