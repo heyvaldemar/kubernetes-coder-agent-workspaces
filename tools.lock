@@ -16,7 +16,7 @@ kubectl v1.37.2 linux-amd64 https://dl.k8s.io/release/v1.37.2/bin/linux/amd64/ku
 kubectl v1.37.2 darwin-arm64 https://dl.k8s.io/release/v1.37.2/bin/darwin/arm64/kubectl kubectl 55701af0d51815ee335f240e48acf0959c3c23017ed3fa816e880c4a92bae581
 kubeconform v0.8.0 linux-amd64 https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz kubeconform 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
 kubeconform v0.8.0 darwin-arm64 https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-darwin-arm64.tar.gz kubeconform f84f4dfbebf4a6b0b230385fa065a39ea35e02608c2b50d025dcf64775a69d67
-helm v4.3.1 linux-amd64 https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz linux-amd64/helm 0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b
-helm v4.3.1 darwin-arm64 https://get.helm.sh/helm-v4.3.1-darwin-arm64.tar.gz darwin-arm64/helm 6b4e61c8cd27d99e5a801e63ff25dd5c70b36875c2cd659d3e9ce6b76fc23198
+helm v4.3.2 linux-amd64 https://get.helm.sh/helm-v4.3.2-linux-amd64.tar.gz linux-amd64/helm d1c0278d46beab79582d7e50f5b3dc206944ba8e577cde618513fd07daa53983
+helm v4.3.2 darwin-arm64 https://get.helm.sh/helm-v4.3.2-darwin-arm64.tar.gz darwin-arm64/helm 6f3421de3a8cc2ac578c8cfb33b8edde290dde2871bc1bab12e24f2e5caeaa90
 coder v2.38.7 linux-amd64 https://github.com/coder/coder/releases/download/v2.38.7/coder_2.38.7_linux_amd64.tar.gz ./coder 0d0896df46447f2ced42e85d3f3b6af4c747b8042d232aa597e160911f80e20f
 coder v2.38.7 darwin-arm64 https://github.com/coder/coder/releases/download/v2.38.7/coder_2.38.7_darwin_arm64.zip coder 385ffb9c3a2ef0692bf1db8d07fd4e06c7d765fe293e8cbc7fdef223f182ab69
