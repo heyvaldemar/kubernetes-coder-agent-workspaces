@@ -6,6 +6,16 @@
 #
 # Pod Security restricted, read-only, by digest, with limits; the same image
 # the sandbox's e2e uses for Python.
+#
+# The model's pod reaches nothing at all, from its first instant: kind's
+# network plugin judges a new pod's packets only once it has read the pod's
+# address from the API server, a moment after its containers start
+# (docs/threat-model.md), so the model waits at a gate. With no address
+# it may reach, the gate cannot see an allowed one answer, as the workspace's
+# does; it waits until neither the Kubernetes API nor the cluster's CoreDNS
+# (the pod's own resolver), both always up, answers. A pod's network is configured before its first
+# container starts, so their silence is the policy, not a network still
+# coming up. A minute at most; a pod that never gets there fails.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -33,6 +43,20 @@ spec:
         runAsUser: 10001
         runAsGroup: 10001
         seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        - name: wait-for-the-wall
+          image: docker.io/library/busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command:
+            - sh
+            - -c
+            - for i in $(seq 1 60); do if ! nc -w 1 "$KUBERNETES_SERVICE_HOST" "$KUBERNETES_SERVICE_PORT" </dev/null >/dev/null 2>&1 && ! nslookup -timeout=1 example.com >/dev/null 2>&1; then exit 0; fi; sleep 1; done; echo "the network policy never took hold"; exit 1
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 32Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
       containers:
         - name: model
           image: docker.io/library/python:3.13-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e

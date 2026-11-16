@@ -17,6 +17,10 @@
 #      Coder server answers; the internet by name and by address, the
 #      Kubernetes API, the metadata service, another namespace's service,
 #      Coder's Postgres and DNS as a way out do not
+#  4b. a pod made from the workspace's own, and one from the model's, gates
+#      included, ask from their first instant: the internet, the cluster's
+#      CoreDNS and the Kubernetes API do not answer; the workspace's copy
+#      reaches the Coder server on its first try
 #   5. the one credential: no Kubernetes API token in the workspace; the
 #      Coder agent's token, measured at the Coder API from inside and at the
 #      Kubernetes API from outside, and who can read it
@@ -88,6 +92,8 @@ model_facts() {  # out
 cleanup() {
   [ -n "${CODER_PORT_FORWARD_PID:-}" ] && kill "$CODER_PORT_FORWARD_PID" 2>/dev/null
   kubectl delete namespace e2e-control e2e-metadata --ignore-not-found --wait=false >/dev/null 2>&1
+  kubectl -n coder-workspaces delete pod e2e-first-instant --ignore-not-found --wait=false >/dev/null 2>&1
+  kubectl -n model delete pod e2e-first-instant --ignore-not-found --wait=false >/dev/null 2>&1
   rm -rf "$work"
 }
 trap cleanup EXIT
@@ -199,6 +205,98 @@ node_kernel="$(kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.kernelV
 if [[ "$pod_kernel" == *gvisor* ]] && [[ "$node_kernel" != *gvisor* ]]; then
   pass "the workspace sees kernel $pod_kernel; the node runs $node_kernel"
 else fail "the workspace sees kernel '${pod_kernel:-none}', the node '$node_kernel'"; fi
+
+# --- 4b ----------------------------------------------------------------------
+step "4b. the first instant: a workspace's pod and the model's"
+# kind's network plugin judges a new pod's packets only once it has read the
+# pod's address from the API server, a moment after its containers start
+# (docs/threat-model.md). The workspace and the model wait
+# at a gate for that. Each check starts a pod made from the live one, gate
+# included, whose container asks from its very first instant, for three
+# seconds, one loop per question, with busybox, which starts in
+# milliseconds: the internet by address over TCP and over DNS, the cluster's
+# CoreDNS and the Kubernetes API, none of which either may reach. Nothing may
+# answer any try. The workspace's copy also asks the Coder server, which must
+# answer its first try, so the network is up when the agent starts. The
+# model may reach nothing at all; step 7's pod outside the boundary is the
+# control that these addresses answer.
+# shellcheck disable=SC2016  # expanded by the pod's shell
+first_instant_script='
+web() { printf "HEAD / HTTP/1.0\r\nHost: %s\r\n\r\n" "$1" | nc -w 1 "$1" "$2" 2>/dev/null | head -1 | grep -q "^HTTP/"; }
+conn() { nc -w 1 "$1" "$2" </dev/null >/dev/null 2>&1; }
+dns() { nslookup -timeout=1 example.com "$1" 2>/dev/null | sed -n "/^Name:/,\$p" | grep -qE "^Address:? [0-9]"; }
+http() { wget -S -q -T 1 -O /dev/null "$1" 2>&1 | grep -q "HTTP/"; }
+ask() { name="$1"; shift; end=$(( $(date +%s) + 3 )); while [ "$(date +%s)" -lt "$end" ]; do if "$@"; then echo "$name answered"; else echo "$name nothing"; fi; done; }
+ask internet-tcp web 1.1.1.1 80 &
+ask internet-dns dns 1.1.1.1 &
+ask cluster-dns dns "$1" &
+ask api-server conn "$2" 443 &
+if [ -n "$3" ]; then ask allowed http "$3" & fi
+wait'
+kube_dns="$(kubectl -n kube-system get service kube-dns -o jsonpath='{.spec.clusterIP}')"
+api_ip="$(kubectl -n default get service kubernetes -o jsonpath='{.spec.clusterIP}')"
+# first_instant NAME NAMESPACE CONTAINER SOURCE_JSON ALLOWED_URL: a pod made
+# from SOURCE_JSON (a live Pod, or a Deployment's template), with CONTAINER
+# running the questions above; prints what it heard.
+first_instant() {
+  local name="$1" ns="$2" container="$3" source="$4" allowed="$5"
+  python3 - "$name" "$ns" "$container" "$BUSYBOX" "$first_instant_script" "$source" "$kube_dns" "$api_ip" "$allowed" <<'PY' | kubectl apply -f - >/dev/null
+import json, sys
+name, ns, container, image, script, source, *args = sys.argv[1:]
+src = json.load(open(source))
+spec = (src["spec"]["template"] if src["kind"] == "Deployment" else src)["spec"]
+assert [c["name"] for c in spec.get("initContainers", [])] == ["wait-for-the-wall"], spec.get("initContainers")
+for k in ("nodeName", "overhead"):  # the scheduler and the RuntimeClass set these again
+    spec.pop(k, None)
+spec["restartPolicy"] = "Never"
+(c,) = [c for c in spec["containers"] if c["name"] == container]
+spec["containers"] = [c]
+c.update(image=image, command=["sh", "-c", script, "sh", *args])
+for k in ("args", "ports", "readinessProbe", "livenessProbe", "startupProbe"):
+    c.pop(k, None)
+# The agent's token stays with the workspace, and so does its home: this pod
+# has no use for either.
+c["env"] = [e for e in c.get("env", []) if e["name"] != "CODER_AGENT_TOKEN"]
+spec["volumes"] = [{"name": v["name"], "emptyDir": {}} if "persistentVolumeClaim" in v else v
+                   for v in spec.get("volumes", [])]
+# Its own label: not the workspace's (the e2e finds the workspace by label)
+# and not the model's (its Service would send it traffic).
+print(json.dumps({"apiVersion": "v1", "kind": "Pod",
+                  "metadata": {"name": name, "namespace": ns, "labels": {"app.kubernetes.io/name": "e2e-first-instant"}},
+                  "spec": spec}))
+PY
+  for _ in $(seq 1 40); do
+    case "$(kubectl -n "$ns" get pod "$name" -o jsonpath='{.status.phase}' 2>/dev/null)" in Succeeded|Failed) break ;; esac
+    sleep 3
+  done
+  kubectl -n "$ns" logs "$name" -c "$container" 2>/dev/null
+  kubectl -n "$ns" delete pod "$name" --wait=false >/dev/null 2>&1
+}
+# judge WHAT LOG: nothing but the allowed address may answer.
+judge() {
+  local what="$1" log="$2" refused tries
+  refused="$(awk '$1 != "allowed"' <<<"$log")"
+  tries="$(grep -c . <<<"$refused")"
+  if [ -z "$log" ]; then
+    fail "$what printed nothing: its gate never let it start"
+  elif ! grep -q ' answered$' <<<"$refused"; then
+    pass "$what, asking from its first instant, got no answer from the internet (TCP and DNS), the cluster's CoreDNS or the Kubernetes API ($tries tries in 3 s)"
+  else
+    fail "$what got an answer at its first instant: $(grep ' answered$' <<<"$refused" | sort | uniq -c | tr -s ' ' | paste -sd ';' -)"
+  fi
+}
+ws_source="$work/first-instant-workspace.json"
+kubectl -n "$WS" get pods -l com.coder.workspace.name=e2e -o json | jq '.items[0]' >"$ws_source"
+heard="$(first_instant e2e-first-instant "$WS" dev "$ws_source" http://coder.coder.svc.cluster.local/healthz)"
+if [ "$(awk '$1 == "allowed" {print $2; exit}' <<<"$heard")" = answered ]; then
+  pass "control: a pod made from the workspace's reaches the Coder server on its first try after the gate"
+else
+  fail "control: a pod made from the workspace's did not reach the Coder server on its first try, so its silence proves nothing: $(sort <<<"$heard" | uniq -c | tr -s ' ' | paste -sd ';' -)"
+fi
+judge "a pod made from the workspace's" "$heard"
+model_source="$work/first-instant-model.json"
+kubectl -n model get deployment model -o json >"$model_source"
+judge "a pod made from the model's" "$(first_instant e2e-first-instant model model "$model_source" "")"
 
 # --- 5 (outside) -------------------------------------------------------------
 step "5. the agent's token, from outside"
