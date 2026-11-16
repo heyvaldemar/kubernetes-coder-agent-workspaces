@@ -27,6 +27,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Security
 
+- **A run by hand never replaces a signature a release already carries.** `.github/workflows/release-assets.yml`, started by hand, now refuses a release that already has its signature, or one it cannot read. Replacing the files would have made the signature name `main` instead of the tag, and a check pinned to the tag's identity would then refuse the release. To replace them on purpose, delete the three files first.
 - **A release is verified for its exact signer** (23e990c). `.github/workflows/release-assets.yml` checks the signature against this repository's `release-assets.yml` on the ref the run ran on; before, any workflow of the repository on any branch passed. A changed archive must now be refused in the tool's own words, so Sigstore out of reach or a missing tool fails the job instead of passing it. A run started by hand runs only from `main`.
 
 ## [1.2.0] - 2026-11-11
