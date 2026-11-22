@@ -5,7 +5,7 @@
 "helm/values.yaml"	"    enableDeployments: false\n    workspaceNamespaces:"	"    enableDeployments: true\n    workspaceNamespaces:"	"coder"	"the provisioner given Deployments"
 "helm/values.yaml"	"        enableDeployments: false\n"	"        enableDeployments: false\n      - name: default\n"	"coder"	"the provisioner given a second namespace"
 "helm/values-github.yaml"	"    - {name: CHECKPOINT_DISABLE, value: \"1\"}\n"	""	"coder"	"the GitHub values file dropping a setting of the base one"
-"helm/values.yaml"	"    tag: \"v2.38.7@sha256:58a163a10ce05c0c254f2cb6fb2fe8f94d6021a8ff5a611e288ff5078141fb80\""	"    tag: \"v2.38.7\""	"images"	"the Coder image by tag only"
+"helm/values.yaml"	"    tag: \"v2.38.10@sha256:f94f80a3bcc002b9a4e32b551d18e5331a0b9c936e0663412e8a9894339e94cf\""	"    tag: \"v2.38.10\""	"images"	"the Coder image by tag only"
 "manifests/postgres.yaml"	"image: docker.io/library/postgres:17.12-alpine3.24@sha256:a77aa70e641402a21411b92b721c58d10f23b50ae5fdd2333efd22d166e1e5f7"	"image: docker.io/library/postgres:17.12-alpine3.24"	"images"	"Postgres by tag only"
 "templates/agent-workspace/main.tf"	"workspace_image = \"docker.io/codercom/example-minimal@sha256:137678561bd25b329ad78fe18ed304da48ee5f550aaf6eb8bc727a83dfca6531\""	"workspace_image = \"docker.io/codercom/example-minimal:ubuntu\""	"images"	"the workspace image by tag in the template"
 "tests/real-model/llama.yaml"	"image: ghcr.io/ggml-org/llama.cpp:server-b11429@sha256:2f8ebc2dde83c4bd7e5c6d61efa57965e0d5a79d29802c246c4593740d9c04c1"	"image: ghcr.io/ggml-org/llama.cpp:server-b11429"	"images"	"the weekly real model's server by tag"

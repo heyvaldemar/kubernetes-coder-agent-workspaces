@@ -6,7 +6,7 @@
 # Hashes were checked against each publisher's own checksum file: kind,
 # kubectl and kubeconform as in the sandbox repository, helm against
 # get.helm.sh's .sha256sum files, and the coder CLI against
-# coder_2.38.7_checksums.txt on the v2.38.7 release, which Coder signs.
+# coder_2.38.10_checksums.txt on the v2.38.10 release, which Coder signs.
 # The coder CLI is the same version as the server (charts.lock).
 #
 # name  version  platform  url  member-in-archive  sha256
@@ -18,5 +18,5 @@ kubeconform v0.8.0 linux-amd64 https://github.com/yannh/kubeconform/releases/dow
 kubeconform v0.8.0 darwin-arm64 https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-darwin-arm64.tar.gz kubeconform f84f4dfbebf4a6b0b230385fa065a39ea35e02608c2b50d025dcf64775a69d67
 helm v4.3.2 linux-amd64 https://get.helm.sh/helm-v4.3.2-linux-amd64.tar.gz linux-amd64/helm d1c0278d46beab79582d7e50f5b3dc206944ba8e577cde618513fd07daa53983
 helm v4.3.2 darwin-arm64 https://get.helm.sh/helm-v4.3.2-darwin-arm64.tar.gz darwin-arm64/helm 6f3421de3a8cc2ac578c8cfb33b8edde290dde2871bc1bab12e24f2e5caeaa90
-coder v2.38.7 linux-amd64 https://github.com/coder/coder/releases/download/v2.38.7/coder_2.38.7_linux_amd64.tar.gz ./coder 0d0896df46447f2ced42e85d3f3b6af4c747b8042d232aa597e160911f80e20f
-coder v2.38.7 darwin-arm64 https://github.com/coder/coder/releases/download/v2.38.7/coder_2.38.7_darwin_arm64.zip coder 385ffb9c3a2ef0692bf1db8d07fd4e06c7d765fe293e8cbc7fdef223f182ab69
+coder v2.38.10 linux-amd64 https://github.com/coder/coder/releases/download/v2.38.10/coder_2.38.10_linux_amd64.tar.gz ./coder 3f4400d42b2518ba84c36467cf93037af4647dd75363cabcb38005f10844a57d
+coder v2.38.10 darwin-arm64 https://github.com/coder/coder/releases/download/v2.38.10/coder_2.38.10_darwin_arm64.zip coder f62bac3482a4f4bd8fb47a0b8a97eeea3999a35a9aa16246d5d17dbdf49d5ab0
